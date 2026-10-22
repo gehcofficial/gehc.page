@@ -22,6 +22,7 @@ import {
   type SegmentId,
 } from '../../lib/mentoring';
 import { buildMentoringRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
+import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 import SessionTimer from './SessionTimer';
 import SegmentStepper from './SegmentStepper';
 import { PatternDay } from './PatternDay';
@@ -50,6 +51,7 @@ const MentoringDay: React.FC = () => {
   const [note, setNote] = useState<string | null>(null);
   const [chipDone, setChipDone] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const sessionEtag = useRef({ etag: null as string | null });
   const noteTimer = useRef<number | null>(null);
   const pendingNotes = useRef<Record<string, string>>({});
   const autoJumped = useRef<SegmentId | null>(null);
@@ -57,22 +59,25 @@ const MentoringDay: React.FC = () => {
   const load = useCallback(async () => {
     if (!slug) {
       setState({ status: 'error', message: 'Slug sesi tidak ada di tautan.' });
-      return;
+      return false;
     }
     try {
-      const r = await fetch(`/api/worship/session/${encodeURIComponent(slug)}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const polled = await fetchWithEtag(
+        `/api/worship/session/${encodeURIComponent(slug)}`,
+        sessionEtag.current,
+        { credentials: 'include' },
+      );
+      if (polled.unchanged) return false;
+      const r = polled.response;
       if (r.status === 401) {
         window.location.hash = `#/login?next=${encodeURIComponent(`#/mentoring/${slug}`)}`;
         setState({ status: 'auth' });
-        return;
+        return true;
       }
-      const d: MentoringSessionPayload = await r.json();
+      const d = polled.data as MentoringSessionPayload & { error?: string };
       if (!r.ok) {
-        setState({ status: 'error', message: (d as unknown as { error?: string })?.error || 'Gagal memuat.' });
-        return;
+        setState({ status: 'error', message: d?.error || 'Gagal memuat.' });
+        return true;
       }
       setData(d);
       setDraft((prev) => {
@@ -85,19 +90,14 @@ const MentoringDay: React.FC = () => {
       setNoteDraft((prev) => ({ ...d.notes, ...prev }));
       setPicked((prev) => (prev.length ? prev : d.chips?.mine || []));
       setState({ status: 'ok' });
+      return true;
     } catch (e) {
       setState({ status: 'error', message: e instanceof Error ? e.message : 'Gagal memuat.' });
+      return true;
     }
   }, [slug]);
 
-  useEffect(() => {
-    void load();
-    const id = window.setInterval(() => {
-      if (document.hidden) return;
-      void load();
-    }, 20000);
-    return () => window.clearInterval(id);
-  }, [load]);
+  useEffect(() => startVisiblePoll(() => load(), 15000, 30000), [load]);
 
   useEffect(
     () => () => {

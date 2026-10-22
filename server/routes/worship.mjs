@@ -19,6 +19,83 @@ import { createFolder as driveCreateFolder, listAllFolders, findFoldersNamed, ge
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../lib/lab-drive.mjs';
 import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
 import { canonicalCreativeLabPhases, legacyCreativeLabHits, presentWorshipPattern } from '../lib/creative-lab-rundown.mjs';
+import { finishIfMatch, weakEtag } from '../lib/http-cache.mjs';
+
+const PATTERN_LEAN = {
+  select: {
+    id: true,
+    code: true,
+    name: true,
+    summary: true,
+    defaultDurationMin: true,
+    phases: true,
+    modules: true,
+    status: true,
+    updatedAt: true,
+  },
+};
+
+function numCell(value) {
+  if (value == null) return '';
+  if (typeof value === 'bigint') return value.toString();
+  if (value instanceof Date) return String(value.getTime());
+  return String(value);
+}
+
+/** Sidik jari murah untuk poll. Gagal query → null (tetap kirim body penuh). */
+async function worshipPollEtag(prisma, session, userId) {
+  const id = session.id;
+  const rows = await prisma.$queryRaw`
+    SELECT
+      (SELECT COUNT(*) FROM worship_likert_responses WHERE session_id = ${id}) AS likert_n,
+      (SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM worship_likert_responses WHERE session_id = ${id}) AS likert_u,
+      (SELECT COUNT(*) FROM worship_likert_items WHERE session_id = ${id}) AS items_n,
+      (SELECT COALESCE(SUM(CRC32(CONCAT(id, text, IFNULL(gospel_note, ''), sort_order))), 0) FROM worship_likert_items WHERE session_id = ${id}) AS items_h,
+      (SELECT COUNT(*) FROM worship_chip_votes WHERE session_id = ${id}) AS votes_n,
+      (SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM worship_chip_votes WHERE session_id = ${id}) AS votes_c,
+      (SELECT COUNT(*) FROM worship_chips WHERE session_id = ${id}) AS chips_n,
+      (SELECT COALESCE(SUM(CRC32(CONCAT(id, label, is_active))), 0) FROM worship_chips WHERE session_id = ${id}) AS chips_h,
+      (SELECT COUNT(*) FROM worship_notes WHERE session_id = ${id}) AS notes_n,
+      (SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM worship_notes WHERE session_id = ${id}) AS notes_u,
+      (SELECT COUNT(*) FROM worship_lab_updates WHERE session_id = ${id}) AS lab_n,
+      (SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM worship_lab_updates WHERE session_id = ${id}) AS lab_c,
+      (SELECT UNIX_TIMESTAMP(MAX(acknowledged_at)) FROM worship_lab_updates WHERE session_id = ${id}) AS lab_a
+  `;
+  const row = rows?.[0] || {};
+  let mine = '';
+  if (userId) {
+    const mineRows = await prisma.$queryRaw`
+      SELECT
+        (SELECT COUNT(*) FROM worship_likert_responses WHERE session_id = ${id} AND user_id = ${userId}) AS n,
+        (SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM worship_likert_responses WHERE session_id = ${id} AND user_id = ${userId}) AS u,
+        (SELECT COUNT(*) FROM worship_notes WHERE session_id = ${id} AND user_id = ${userId}) AS nn,
+        (SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM worship_notes WHERE session_id = ${id} AND user_id = ${userId}) AS nu,
+        (SELECT COUNT(*) FROM worship_chip_votes WHERE session_id = ${id} AND user_id = ${userId}) AS vn
+    `;
+    const m = mineRows?.[0] || {};
+    mine = [m.n, m.u, m.nn, m.nu, m.vn].map(numCell).join(',');
+  }
+  return weakEtag([
+    'worship',
+    id,
+    userId || '',
+    session.updatedAt,
+    session.status,
+    session.startedAt,
+    session.wrapUpAt,
+    session.pattern?.updatedAt,
+    ...['likert_n', 'likert_u', 'items_n', 'items_h', 'votes_n', 'votes_c', 'chips_n', 'chips_h', 'notes_n', 'notes_u', 'lab_n', 'lab_c', 'lab_a'].map((key) => numCell(row[key])),
+    mine,
+  ]);
+}
+
+async function tryWorshipEtag(prisma, session, userId) {
+  try {
+    return await worshipPollEtag(prisma, session, userId);
+  } catch {
+    return null;
+  }
+}
 
 /** Rata-rata jawaban Likert per item (untuk delta pre→post film). */
 async function likertMeans(prisma, sessionId) {
@@ -1012,11 +1089,17 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
       const session = await prisma.worshipSession.findUnique({
         where: { slug: String(req.params.slug) },
-        include: { pattern: true },
+        include: { pattern: PATTERN_LEAN },
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
       const timed = await ensureAutoState(prisma, session);
       const live = await ensureAutoClosed(prisma, timed);
+      if (!live.pattern && session.pattern) live.pattern = session.pattern;
+      const baseEtag = await tryWorshipEtag(prisma, live, req.authUser.id);
+      const etag = baseEtag && req.query?.teamIndex != null && String(req.query.teamIndex) !== ''
+        ? weakEtag([baseEtag, String(req.query.teamIndex)])
+        : baseEtag;
+      if (etag && finishIfMatch(req, res, etag)) return;
 
       const config = normalizeConfig(live.config, live.pattern?.code);
       const [items, myResponses, myVotes, myNotes] = await Promise.all([
@@ -1828,7 +1911,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const session = await prisma.worshipSession.findUnique({
         where: { slug: String(req.params.slug) },
-        include: { pattern: true },
+        include: { pattern: PATTERN_LEAN },
       });
       if (!session) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
 
@@ -1839,10 +1922,12 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
       const liveStateTimed = await ensureAutoState(prisma, session);
       const liveState = await ensureAutoClosed(prisma, liveStateTimed);
+      if (!liveState.pattern && session.pattern) liveState.pattern = session.pattern;
+      const etag = await tryWorshipEtag(prisma, liveState, null);
+      if (etag && finishIfMatch(req, res, etag)) return;
 
       const agg = await loadAggregates(prisma, liveState);
       const expected = agg.config.expectedCount || (await youthUserCount(prisma));
-      res.setHeader('Cache-Control', 'no-store');
       const pcode = String(liveState.pattern?.code || session.pattern?.code || '').toUpperCase();
       const liveLabRows = pcode === 'CREATIVE_LAB' ? await labRows(prisma, liveState.id) : [];
       const liveLab = pcode === 'CREATIVE_LAB'
@@ -3307,15 +3392,20 @@ export function registerWorshipRoutes(app, { wrap }) {
   );
 }
 
+let youthCountCache = { at: 0, n: 0 };
+
 async function youthUserCount(prisma) {
+  if (youthCountCache.at && Date.now() - youthCountCache.at < 10 * 60 * 1000) return youthCountCache.n;
   try {
     const rows = await prisma.userRole.findMany({
       where: { tenantId: YOUTH_TENANT },
       select: { userId: true },
       take: 5000,
     });
-    return new Set(rows.map((r) => r.userId)).size;
+    const n = new Set(rows.map((r) => r.userId)).size;
+    youthCountCache = { at: Date.now(), n };
+    return n;
   } catch {
-    return 0;
+    return youthCountCache.n || 0;
   }
 }

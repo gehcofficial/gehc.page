@@ -1,6 +1,22 @@
 # GEHC Portal — Handoff
 
-## Current — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
+## Current — Diet CPU Vercel Fluid (22 Okt 2026)
+
+**Minta:** turunkan Active CPU fungsi `/api` (Hobby 4 jam/bulan; terpakai 9j39m 22 Sep–22 Okt). Lonjakan hari Minggu dari poll layar. Cabang `cursor/vercel-cpu-diet-d5fe` dari `main` `dcfa400`. Tanpa ubah data produksi, tanpa deploy/alias.
+
+**Done:**
+- Poll layar (mentoring, liturgi, hari, ruang kontrol, absensi) jeda saat tab tersembunyi, segar saat kembali, dan mundur 15s→30s atau 20s→40s bila 304. Timer tetap dihitung di klien dari `startedAt`.
+- ETag dari hitungan/stempel waktu, bukan agregat penuh. Pola tanpa playbook. Pengguna di-cache 20 dtk. Jumlah pemuda di-cache 10 menit.
+- `/api/health` tidak menyentuh DB kecuali `?db=1`. `/api/config` probe 60 dtk + `s-maxage`. Ringkasan/presentasi di-cache per host (`Vary: Host`). Prisma di `globalThis`, pool Vercel `connection_limit=1`, timeout 8 dtk. `maxDuration` tetap 60.
+- PDF parse/render tetap di server (bukan jalur poll).
+
+**Next:** pantau Active CPU minggu ibadah berikutnya. Jangan `staging:sync` dari cabang ini.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **169 file / 1340 tes** lulus. `npm run build` lulus.
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm test` · `npm run build` · branch `cursor/vercel-cpu-diet-d5fe`
+
+## Prior — Umpan balik Didaskalia + Creative Lab 25 Okt (22 Okt 2026)
 
 **Minta:** sisa item 1 (kolom kosong, Terbaca 55/55, varian refleksi), 2 rundown, 3 bahan saat kedatangan, 5 peran pelayanan + Liturgos, 6 daftar kelompok dari absensi. Cabang `cursor/didaskalia-feedback-1025-d5fe`. Jangan republish khotbah produksi.
 

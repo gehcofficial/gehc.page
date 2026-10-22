@@ -138,8 +138,19 @@ export async function attachMustChangePassword(prisma, user) {
   return user;
 }
 
-/** Muat User + roles dari DB berdasarkan uid di sesi. */
+const userCache = new Map();
+const USER_CACHE_MS = 20_000;
+
+function cloneCachedUser(user) {
+  if (!user) return null;
+  const roles = Array.isArray(user.roles) ? user.roles.map((role) => ({ ...role })) : [];
+  return { ...user, roles };
+}
+
+/** Muat User + roles dari DB berdasarkan uid di sesi. Hangat 20 dtk agar poll tidak mengulang query user. */
 async function loadUserByUid(uid) {
+  const hit = userCache.get(uid);
+  if (hit && Date.now() - hit.at < USER_CACHE_MS) return cloneCachedUser(hit.user);
   const prisma = getPrisma();
   if (!prisma) return null;
   const user = await prisma.user.findUnique({
@@ -147,7 +158,15 @@ async function loadUserByUid(uid) {
     include: { roles: true },
   });
   await attachMustChangePassword(prisma, user);
-  return applySuperadminSession(user);
+  const sessionUser = applySuperadminSession(user);
+  if (sessionUser) {
+    userCache.set(uid, { at: Date.now(), user: cloneCachedUser(sessionUser) });
+    if (userCache.size > 400) {
+      const oldest = userCache.keys().next().value;
+      if (oldest) userCache.delete(oldest);
+    }
+  }
+  return cloneCachedUser(sessionUser);
 }
 
 export function readSession(req) {

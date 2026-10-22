@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Copy,
   Download,
@@ -17,6 +17,7 @@ import {
   type MentoringLivePayload,
   type MentoringStatus,
 } from '../../lib/mentoring';
+import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 import { lastPortalPlace } from '../../lib/portal-place';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { sessionHasDraftContent } from '../../lib/worship-session-draft';
@@ -266,14 +267,21 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     }
   }, [selectedId, applyDetail]);
 
+  const liveEtag = useRef({ etag: null as string | null });
   const loadLive = useCallback(async () => {
-    if (!detail?.session?.slug) return;
+    if (!detail?.session?.slug) return false;
     try {
-      const r = await fetch(`/api/worship/live/${encodeURIComponent(detail.session.slug)}`, { credentials: 'include' });
-      if (!r.ok) return;
-      setLive(await r.json());
+      const polled = await fetchWithEtag(
+        `/api/worship/live/${encodeURIComponent(detail.session.slug)}`,
+        liveEtag.current,
+        { credentials: 'include' },
+      );
+      if (polled.unchanged) return false;
+      if (!polled.response.ok) return true;
+      setLive(polled.data as typeof live);
+      return true;
     } catch {
-      /* abaikan */
+      return true;
     }
   }, [detail?.session?.slug]);
 
@@ -283,14 +291,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
-  useEffect(() => {
-    void loadLive();
-    const id = window.setInterval(() => {
-      if (document.hidden) return;
-      void loadLive();
-    }, 20000);
-    return () => window.clearInterval(id);
-  }, [loadLive]);
+  useEffect(() => startVisiblePoll(() => loadLive(), 15000, 30000), [loadLive]);
 
   const doAction = async (action: string, extra?: Record<string, unknown>) => {
     if (!detail) return;

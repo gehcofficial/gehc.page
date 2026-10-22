@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, ClipboardPaste, Download, ImagePlus, Loader2, QrCode, Undo2, UserPlus, XCircle } from 'lucide-react';
 import { EventAttendanceQrScreen } from './EventAttendanceQrScreen';
+import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 
 type ScanResult = 'OK' | 'DUPLICATE' | 'UNKNOWN' | 'MISMATCH' | 'EXPIRED' | 'WALK_IN' | 'VOIDED';
 
@@ -123,15 +124,22 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
   /** Mode kebalikan: satu QR event dipindai peserta (absensi mandiri). */
   const [showScreen, setShowScreen] = useState(false);
 
+  const scanEtag = useRef({ etag: null as string | null });
   const load = useCallback(async () => {
-    const r = await fetch(`/api/events/${encodeURIComponent(eventId)}/check-ins`, { credentials: 'include' });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    setStats(d.stats);
+    const polled = await fetchWithEtag(
+      `/api/events/${encodeURIComponent(eventId)}/check-ins`,
+      scanEtag.current,
+      { credentials: 'include' },
+    );
+    if (polled.unchanged) return false;
+    const d = (polled.data || {}) as { error?: string; stats?: Stats; scans?: ScanRow[]; petugas?: { summary: PetugasSummary; list: PetugasRow[] }; event?: { date?: string }; nextCursor?: string | null };
+    if (!polled.response.ok) throw new Error(d.error || `HTTP ${polled.response.status}`);
+    setStats(d.stats || null);
     setScans(d.scans || []);
     setPetugas(d.petugas || null);
     setEventDate(d.event?.date || null);
     setNextCursor(d.nextCursor || null);
+    return true;
   }, [eventId]);
 
   const loadMore = useCallback(async () => {
@@ -151,12 +159,8 @@ export const EventCheckInTab: React.FC<{ eventId: string; eventName: string }> =
   }, [load]);
 
   useEffect(() => {
-    if (paused || document.hidden) return;
-    const t = setInterval(() => {
-      if (document.hidden) return;
-      load().catch(() => null);
-    }, 15000);
-    return () => clearInterval(t);
+    if (paused) return undefined;
+    return startVisiblePoll(() => load().then((changed) => changed).catch(() => true), 15000, 30000);
   }, [load, paused]);
 
   const submitCode = useCallback(async (code: string) => {

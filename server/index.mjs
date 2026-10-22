@@ -1754,7 +1754,18 @@ app.get('/api/diagnostics/sharp', requireRole('SUPERADMIN', 'KOMISI'), wrap(asyn
   });
 }));
 
-app.get('/api/health', wrap(async (req, res) => {  let dbConnected = false;
+app.get('/api/health', wrap(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.query.db !== '1') {
+    return res.json({
+      ok: true,
+      ts: new Date().toISOString(),
+      frontend: true,
+      backend: true,
+      db: { configured: isDbConfigured(), probe: false, target: getDbTarget() },
+    });
+  }
+  let dbConnected = false;
   if (isDbConfigured()) {
     try { dbConnected = await testDb(); } catch { dbConnected = false; }
   }
@@ -1766,17 +1777,23 @@ app.get('/api/health', wrap(async (req, res) => {  let dbConnected = false;
     db: {
       configured: isDbConfigured(),
       connected: dbConnected,
+      probe: true,
       target: getDbTarget(),
       label: getDbLabel(),
     },
   });
 }));
 
+let configDbProbe = { at: 0, connected: false };
+
 app.get('/api/config', wrap(async (req, res) => {
-  let dbConnected = false;
-  if (isDbConfigured()) {
+  let dbConnected = configDbProbe.connected;
+  if (isDbConfigured() && Date.now() - configDbProbe.at > 60_000) {
     try { dbConnected = await testDb(); } catch { dbConnected = false; }
+    configDbProbe = { at: Date.now(), connected: dbConnected };
   }
+  res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=120');
+  res.setHeader('Vary', 'Accept-Encoding, Host');
   res.json({
     driveConfigured: Boolean(getDriveMode()),
     driveMode: getDriveMode(),
@@ -9398,6 +9415,9 @@ app.get('/api/events/:id/worship', requireRole(), wrap(async (req, res) => {
     }).catch(() => null);
   }
   if (!session) return res.json({ session: null });
+  const { finishIfMatch, weakEtag } = await import('./lib/http-cache.mjs');
+  const etag = weakEtag(['event-worship', event.id, session.id, session.updatedAt, session.status, session.pattern?.code]);
+  if (finishIfMatch(req, res, etag)) return;
   res.json({
     session: {
       slug: session.slug,
