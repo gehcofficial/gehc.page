@@ -1,5 +1,21 @@
 # GEHC Portal — Handoff
 
+## Current — Didaskalia impor sumber + tab Gambar (22 Okt 2026)
+
+**Minta:** naskah tim (RHB + Serving Day) jadi sumber Studio. Rapikan opsional. Parse → setujui HOD sudah boleh terbit tanpa Perkaya. Satu tempat gambar: Buat semua gambar (12) dengan progres, lewati yang ada, dan buat ulang per baris. Tanpa deploy dan tanpa migrasi.
+
+**Done:**
+- Parser menerima teks PDF polos dan alias Nats/Nas Pembimbing, Kitab Fundamental, Fondasi Teologis. Fixture dua PDF Oktober W4.
+- Rapikan (format, ejaan, inklusi) dan terjemahan English adalah usulan. Ayat sumber tidak boleh berubah.
+- Tab Inti: Impor → Rapikan & cek → Parse. Perkaya opsional kapan saja. PDF Pembekalan dari studio tersimpan.
+- Tab Gambar menggantikan tombol ilustrasi yang tersebar.
+
+**Next:** QA di browser dengan sesi login bila `DATABASE_URL` tersedia. Jangan deploy dari cabang ini.
+
+**Verifikasi:** `tsc --noEmit` bersih. `npm test` **166 file / 1317 tes** lulus. `npm run build` lulus. Layar Studio tidak dijalankan di browser (butuh database dan sesi).
+
+**Commands:** `npm run lint` · `npm run test` · `npm run build`
+
 ## Current — Penutup Sesi dan liturgi baku (22 Okt 2026)
 
 **Minta:** momen khas pola menjadi item terakhir Didaskalia (`Penutup Sesi · <Nama>`); liturgi ibadah tetap `Persembahan & Doa` 10 dan `Lagu & Doa Penutup` 5, divisi LITURGIA. Mission Sequence: Konklusi = firman penutup, bukan commissioning; commissioning bukan lagi tersimpan di dalam persembahan. Branch baru dari `staging` `dd8b245`. Jangan sentuh `main` atau database.

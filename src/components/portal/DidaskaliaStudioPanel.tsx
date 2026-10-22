@@ -20,7 +20,6 @@ import {
   Users,
   Info,
   ShieldCheck,
-  ImagePlus,
   ExternalLink,
   MessageCircle,
 } from 'lucide-react';
@@ -39,6 +38,7 @@ import {
   hashContent,
   needsRepublish,
   statusLabel,
+  studioHasImportedSource,
   filterCommentsByScope,
   scopeLabel,
   type DidaskaliaComment,
@@ -57,6 +57,8 @@ import { isFlowStale, readFlowBaseline, writeFlowBaseline } from '../../lib/flow
 import { effectiveSessionDay } from '../../lib/effective-date';
 import { applyWeekPattern, WEEK_PATTERN_CHANGED_EVENT, type WeekPatternChangedDetail } from '../../lib/apply-week-pattern';
 import { DidaskaliaKnowledgePanel } from './DidaskaliaKnowledgePanel';
+import { DidaskaliaSourceImport } from './DidaskaliaSourceImport';
+import { DidaskaliaGambarPanel } from './DidaskaliaGambarPanel';
 
 type WeekMeta = { index: number; date: string; theme?: string; mentoringTheme?: string; servingTheme?: string; patternCode?: string };
 type RitualRow = { type: RitualType; date: string; timeStart: string; timeEnd: string; status: string; notes?: string; meetUrl?: string };
@@ -104,60 +106,40 @@ async function readJson(r: Response): Promise<any> {
   }
 }
 
-/** Slot gambar opsional (upload ke Drive → fileId) dengan pratinjau. */
-const ImageSlot: React.FC<{
-  label: string;
-  fileId?: string;
-  onUpload: (f: File) => Promise<void>;
-  onClear: () => void;
-}> = ({ label, fileId, onUpload, onClear }) => {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const ref = React.useRef<HTMLInputElement | null>(null);
-  return (
-    <div className="rounded-xl border border-dashed border-[#D9D7D0] p-2 space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-bold text-[#8C8880]">{label}</span>
-        {fileId && (
-          <button type="button" onClick={onClear} className="text-[10px] font-bold text-red-600">Hapus</button>
-        )}
-      </div>
-      {fileId ? (
-        <img src={`/api/didaskalia/asset/${encodeURIComponent(fileId)}`} alt="" className="w-full h-28 object-cover rounded-lg border border-[#EFEDE8]" />
-      ) : (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => ref.current?.click()}
-          className="w-full h-20 rounded-lg bg-[#FAF9F5] border border-[#EFEDE8] text-[11px] font-bold text-[#8C8880] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Tambah gambar
-        </button>
-      )}
-      <input
-        ref={ref}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={async (e) => {
-          const f = e.target.files?.[0];
-          e.target.value = '';
-          if (!f) return;
-          setBusy(true);
-          setErr(null);
-          try {
-            await onUpload(f);
-          } catch (x) {
-            setErr(x instanceof Error ? x.message : 'Gagal unggah gambar.');
-          } finally {
-            setBusy(false);
-          }
-        }}
-      />
-      {err && <p className="text-[10px] text-red-600">{err}</p>}
-    </div>
-  );
-};
+async function assetDataUrl(fileId?: string): Promise<string | undefined> {
+  if (!fileId) return undefined;
+  try {
+    const r = await fetch(`/api/didaskalia/asset/${encodeURIComponent(fileId)}`, { credentials: 'include' });
+    if (!r.ok) return undefined;
+    const blob = await r.blob();
+    return await new Promise<string>((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ''));
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+async function collectPdfImages(st: DidaskaliaStudio) {
+  const pres = st.presentation || {};
+  const rhbDayImages: Record<number, string> = {};
+  const rhbAi = pres.rhbAi && typeof pres.rhbAi === 'object' ? pres.rhbAi : {};
+  for (const p of ensurePaths(st)) {
+    const dayImg = await assetDataUrl(rhbAi[String(p.pathIndex)]);
+    if (dayImg) rhbDayImages[p.pathIndex] = dayImg;
+  }
+  const khutbahSectionImages: Record<string, string> = {};
+  const khLit = pres.khutbahLiteral && typeof pres.khutbahLiteral === 'object' ? pres.khutbahLiteral : {};
+  for (const key of ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan']) {
+    const d = await assetDataUrl(khLit[key]);
+    if (d) khutbahSectionImages[key] = d;
+  }
+  return { coverImage: await assetDataUrl(pres.cover), rhbDayImages, khutbahSectionImages };
+}
+
+type StudioTab = 'inti' | 'paths' | 'khotbah' | 'gambar' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal';
 
 /** Pesan galat AI yang bisa ditindaklanjuti. */
 function friendlyAiError(e: unknown): string {
@@ -172,7 +154,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const { addToast, authUser, currentUser, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
-  const [tab, setTab] = useState<'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal'>('inti');
+  const [tab, setTab] = useState<StudioTab>('inti');
   const [ym, setYm] = useState(yearMonth || currentYearMonth());
   const [weekIndex, setWeekIndex] = useState(weekIndexProp || 1);
   const [coverage, setCoverage] = useState(4);
@@ -200,20 +182,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
   const [lastAiKind, setLastAiKind] = useState<'draft' | 'sermon' | 'enrich' | null>(null);
   const [expandedPath, setExpandedPath] = useState<number | null>(1);
   const [comment, setComment] = useState('');
-  const [aiPrompt, setAiPrompt] = useState('');
   const [useDiscussionContext, setUseDiscussionContext] = useState(true);
-  /** MD acuan mingguan (input awal): teks mentah per kind + status parse terakhir. */
-  const [mdServiceText, setMdServiceText] = useState('');
-  const [mdRhbText, setMdRhbText] = useState('');
-  const [mdMsg, setMdMsg] = useState<string | null>(null);
-  /** Import MD RHB lengkap 7 hari jadi (judul + nats + 5 section + jembatan). */
-  type FullRhbPath = { pathIndex: number; title: string; scriptureRef: string; sections: Record<string, string>; bridge: string };
-  const [mdFullText, setMdFullText] = useState('');
-  const [fullParsed, setFullParsed] = useState<Array<FullRhbPath> | null>(null);
-  const [fullMode, setFullMode] = useState<'replace' | 'merge'>('replace');
-  const [fullMsg, setFullMsg] = useState<string | null>(null);
-  /** Pola gambar cover: AI generate (default) | UPLOAD manual | MOTIF seri. */
-  const [coverStyle, setCoverStyle] = useState<'AI' | 'UPLOAD' | 'MOTIF'>('AI');
+  const [enDraft, setEnDraft] = useState<Record<string, { titleEn: string; summaryEn: string; bigIdeaEn: string }>>({});
   /** Status token Drive pemilik (untuk pra-cek sebelum generate gambar). */
   const [driveAuth, setDriveAuth] = useState<{ checked: boolean; ok: boolean; ownerEmail?: string | null }>({ checked: false, ok: true });
   /** Hasil verifikasi ayat via bolls.life (TB kanonis + KJV/ESV pembanding; tanpa tulis DB). */
@@ -230,7 +200,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   }, []);
 
-  useEffect(() => { if (tab === 'terbitkan') void checkDriveAuth(); }, [tab, checkDriveAuth]);
+  useEffect(() => { if (tab === 'terbitkan' || tab === 'gambar') void checkDriveAuth(); }, [tab, checkDriveAuth]);
 
   /** Perbandingan longgar teks DB vs kanonis (abaikan kapital/spasi/tanda baca). */
   const looseSame = (a?: string, b?: string) => {
@@ -259,9 +229,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       setBibleCheck({ loading: false, error: e instanceof Error ? e.message : 'Gagal verifikasi.' });
     }
   }, [studio.sermon?.teksUtama?.ref, studio.fundamentalFirman?.ref]);
-  /** Gaya visual AI: sinematik | komunitas | minimal. */
-  const [coverArtStyle, setCoverArtStyle] = useState('cinematic');
   const paths = useMemo(() => ensurePaths(studio), [studio]);
+  const hasSource = useMemo(() => studioHasImportedSource(studio), [studio]);
 
   const [schedule, setSchedule] = useState<{ weeks: Array<WeekMeta & { rituals: RitualRow[] }>; theme: string } | null>(null);
   const [schedBusy, setSchedBusy] = useState(false);
@@ -350,8 +319,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
 
   useEffect(() => { if (tab === 'jadwal') void loadSchedule(); }, [tab, loadSchedule]);
 
-  const save = useCallback(async (patch?: Partial<DidaskaliaStudio>) => {
-    if (!canWrite) return;
+  const save = useCallback(async (patch?: Partial<DidaskaliaStudio>, opts?: { silent?: boolean }): Promise<DidaskaliaStudio | null> => {
+    if (!canWrite) return null;
     const payload = { ...studio, ...(patch || {}) };
     setSaving(true);
     try {
@@ -363,155 +332,17 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       });
       const d = await readJson(r);
       if (!r.ok) throw new Error(d.error || `Gagal simpan (server ${r.status}).`);
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
-      addToast({ type: 'success', title: 'Studio tersimpan' });
+      const next = { ...defaultStudio(), ...(d.week?.studio || {}) };
+      setStudio(next);
+      if (!opts?.silent) addToast({ type: 'success', title: 'Studio tersimpan' });
+      return next;
     } catch (e: unknown) {
       addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal simpan.' });
+      return null;
     } finally {
       setSaving(false);
     }
   }, [addToast, canWrite, studio, weekIndex, ym]);
-
-  /** Parse MD mingguan via server → simpan sebagai acuan pekan (sourceMd). */
-  const parseWeeklyMd = async (kind: 'service' | 'rhb') => {
-    if (!canWrite) return;
-    const content = kind === 'service' ? mdServiceText : mdRhbText;
-    if (!content.trim()) { setMdMsg(`Tempel dulu MD ${kind === 'service' ? 'Service' : 'RHB'} atau unggah berkas.`); return; }
-    setBusy('md-parse');
-    setMdMsg(null);
-    try {
-      const r = await fetch('/api/didaskalia/parse-md', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, content }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `Gagal parse (server ${r.status}).`);
-      // Format MD lengkap 7 hari (# PATH + ## judul + 5 section) BUKAN MD acuan:
-      // jangan simpan acuan kosong yang menyesatkan — arahkan ke importer.
-      if (kind === 'rhb' && !(d.paths || []).length) {
-        setMdMsg('Ini MD RHB lengkap 7 hari, bukan MD acuan — tidak disimpan. Pakai "Import MD lengkap" di tab 7 Path.');
-        return;
-      }
-      if (d.missing?.length) {
-        setMdMsg(`MD ${kind} terbaca tapi kurang: ${d.missing.join('; ')}. Simpan dulu sebagai acuan, lengkapi manual.`);
-      } else {
-        setMdMsg(`MD ${kind} valid ✓ — tersimpan sebagai acuan pekan ini.`);
-      }
-      const prev = studio.sourceMd || { service: null, rhb: null };
-      const entry = kind === 'service'
-        ? { info: d.info || null, outline: d.outline || null, savedAt: new Date().toISOString() }
-        : { paths: d.paths || [], savedAt: new Date().toISOString() };
-      await save({ sourceMd: { ...prev, [kind]: entry } });
-    } catch (e: unknown) {
-      setMdMsg(e instanceof Error ? e.message : 'Gagal parse MD.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /** Terapkan MD RHB ke 7 Path editor (judul/nats/bacaan/ringkasan/jembatan), lalu simpan. Bacaan kosong = pertahankan (Kitab Fokus statis jadi acuan). */
-  const applyRhbToPaths = async () => {
-    if (!canWrite || !studio.sourceMd?.rhb?.paths?.length) return;
-    const parsed = studio.sourceMd.rhb.paths as Array<{ pathIndex: number; title: string; scriptureRef: string; bacaanRef?: string; summary: string; bridge: string }>;
-    const next = ensurePaths(studio).map((p, i) => {
-      const src = parsed[i];
-      if (!src) return p;
-      return {
-        ...p,
-        title: src.title || p.title,
-        scriptureRef: src.scriptureRef || p.scriptureRef,
-        bacaanRef: (src.bacaanRef || '').trim() ? String(src.bacaanRef).trim() : p.bacaanRef,
-        summary: src.summary || p.summary,
-        bridge: src.bridge || p.bridge,
-      };
-    });
-    await save({ paths: next });
-    addToast({ type: 'success', title: 'MD RHB diterapkan ke 7 Path' });
-  };
-
-  /** Parse MD RHB lengkap (7 hari jadi) → preview 7 judul, tanpa tulis DB. */
-  const parseFullRhb = async () => {
-    if (!canWrite) return;
-    if (!mdFullText.trim()) { setFullMsg('Tempel dulu isi MD 7 hari (format "# PATH N" + "## Judul" + 5 section).'); return; }
-    setBusy('md-full-parse');
-    setFullMsg(null);
-    try {
-      const r = await fetch('/api/didaskalia/parse-md', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'rhb-full', content: mdFullText }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `Gagal parse (server ${r.status}).`);
-      if (d.missing?.length) {
-        setFullParsed(null);
-        setFullMsg(`Belum valid: ${d.missing.join('; ')}`);
-        return;
-      }
-      setFullParsed(d.paths || []);
-      const titles = (d.paths || []).map((p: { pathIndex: number; title: string }) => `${p.pathIndex}. ${p.title}`).join(' · ');
-      setFullMsg(`7 hari valid ✓ — ${titles}. Pilih mode lalu Terapkan.`);
-    } catch (e: unknown) {
-      setFullParsed(null);
-      setFullMsg(e instanceof Error ? e.message : 'Gagal parse MD.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /** Terapkan hasil parse MD lengkap ke 7 Path (verbatim, tanpa AI). Bacaan tak disentuh. */
-  const applyFullRhb = async () => {
-    if (!canWrite || !fullParsed?.length) return;
-    if (studio.pendingRegen && String(studio.pendingRegen.status || '').toUpperCase() === 'PENDING') {
-      setFullMsg('Ada pengajuan draf/perkaya PENDING — setujui/tolak dulu sebelum import (agar tak tertimpa).');
-      return;
-    }
-    if (!window.confirm(`Terapkan MD lengkap ke 7 Path (mode ${fullMode === 'replace' ? 'TIMPA penuh' : 'isi yang kosong saja'})? Bacaan harian tidak diubah.`)) return;
-    const byIndex = new Map<number, FullRhbPath>(fullParsed.map((p) => [Number(p.pathIndex), p]));
-    const next = ensurePaths(studio).map((p) => {
-      const src = byIndex.get(Number(p.pathIndex));
-      if (!src) return p;
-      const secs = ensureRhbSections(p.rhbSections).map((s) => {
-        const v = String(src.sections?.[s.key] || '').trim();
-        if (!v) return s;
-        if (fullMode === 'merge' && String(s.body || '').trim()) return s;
-        return { ...s, body: v };
-      });
-      return {
-        ...p,
-        title: src.title || p.title,
-        scriptureRef: src.scriptureRef || p.scriptureRef,
-        bridge: String(src.bridge || '').trim() ? String(src.bridge) : p.bridge,
-        rhbSections: secs,
-      };
-    });
-    await save({ paths: next });
-    setFullMsg(`MD lengkap diterapkan ke 7 Path (mode ${fullMode}). Cek tiap hari, lalu Ilustrasikan + Terbitkan.`);
-    addToast({ type: 'success', title: 'MD lengkap diterapkan ke 7 Path' });
-  };
-
-  /** Terapkan MD Service ke draf Ringkasan (teks utama + 4 outline), lalu simpan. */
-  const applyServiceToSermon = async () => {
-    if (!canWrite || !studio.sourceMd?.service) return;
-    const src = studio.sourceMd.service as { info?: { teksUtama?: string }; outline?: { pengantar?: string; bedahTeologis?: string; jembatan?: string; kesimpulan?: string } };
-    const sm = studio.sermon || defaultSermon();
-    await save({
-      sermon: {
-        ...sm,
-        teksUtama: { ...sm.teksUtama, ref: src.info?.teksUtama || sm.teksUtama?.ref || '' },
-        outline: {
-          pengantar: src.outline?.pengantar || sm.outline?.pengantar || '',
-          bedahTeologis: src.outline?.bedahTeologis || sm.outline?.bedahTeologis || '',
-          jembatan: src.outline?.jembatan || sm.outline?.jembatan || '',
-          kesimpulan: src.outline?.kesimpulan || sm.outline?.kesimpulan || '',
-        },
-      },
-    });
-    addToast({ type: 'success', title: 'MD Service diterapkan ke Ringkasan' });
-  };
 
   const runAi = useCallback(async (kind: 'draft' | 'sermon' | 'enrich') => {
     if (!canWrite) return;
@@ -643,6 +474,54 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     dismissSuggestion(key);
     addToast({ type: 'success', title: 'Usulan diterapkan — klik Simpan' });
   };
+  const proposeTranslate = async (target: 'path' | 'sermon', pathIndex?: number) => {
+    if (!canWrite) return;
+    const saved = await save(undefined, { silent: true });
+    if (!saved) return;
+    const key = target === 'path' ? `path:${pathIndex}` : 'sermon';
+    setBusy(`tr-${key}`);
+    try {
+      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/translate`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, pathIndex }),
+      });
+      const d = await readJson(r);
+      if (!r.ok) throw new Error(d.error || 'Gagal menerjemahkan.');
+      const proposal = d.proposal || {};
+      setEnDraft((s) => ({
+        ...s,
+        [key]: {
+          titleEn: String(proposal.titleEn || ''),
+          summaryEn: String(proposal.summaryEn || ''),
+          bigIdeaEn: String(proposal.bigIdeaEn || ''),
+        },
+      }));
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal menerjemahkan.' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const savePathTranslation = async (i: number, pathIndex: number) => {
+    const draft = enDraft[`path:${pathIndex}`];
+    if (!draft) return;
+    const next = ensurePaths(studio).map((row, idx) => (idx === i ? { ...row, titleEn: draft.titleEn, summaryEn: draft.summaryEn } : row));
+    const saved = await save({ paths: next });
+    if (saved) setEnDraft((s) => { const c = { ...s }; delete c[`path:${pathIndex}`]; return c; });
+  };
+
+  const saveSermonTranslation = async () => {
+    const draft = enDraft.sermon;
+    if (!draft) return;
+    const saved = await save({
+      sermon: { ...studio.sermon, bigIdeaEn: draft.bigIdeaEn, summaryEn: draft.summaryEn },
+    });
+    if (saved) setEnDraft((s) => { const c = { ...s }; delete c.sermon; return c; });
+  };
+
   const suggestionBox = (key: string, apply: (t: string) => void) => {
     const s = suggest[key];
     if (!s) return null;
@@ -721,17 +600,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     return String(d.fileId || '');
   };
 
-  const setCoverImage = (fileId: string) =>
-    setStudio((s) => ({ ...s, presentation: { ...(s.presentation || {}), cover: fileId } }));
-
-  const setPathImage = (pathIndex: number, fileId: string) =>
-    setStudio((s) => {
-      const pres = s.presentation || {};
-      const map = { ...(pres.paths || {}) };
-      if (fileId) map[String(pathIndex)] = fileId; else delete map[String(pathIndex)];
-      return { ...s, presentation: { ...pres, paths: map } };
-    });
-
   const setRhbSection = (i: number, key: string, patch: Partial<DidaskaliaRhbSection>) =>
     setStudio((s) => {
       const next = ensurePaths(s).map((p, idx) =>
@@ -742,105 +610,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
       return { ...s, paths: next };
     });
 
-  const presentationUrl = (doc: 'pembekalan' | 'khutbah' | 'rhb', dayIndex?: number) => {
-    const path = materialHashPath({ doc, yearMonth: ym, weekIndex, ...(dayIndex ? { dayIndex } : {}) });
-    return `${typeof window !== 'undefined' ? window.location.origin : ''}/${path}`;
-  };
-
-  const aiImages = studio.presentation?.aiImages || [];
-
-  const KHUTBAH_LITERAL_SECTIONS = [
-    { key: 'pengantar', label: '1 · Pengantar' },
-    { key: 'bedahTeologis', label: '2 · Bedah Teologis' },
-    { key: 'jembatan', label: '3 · Jembatan' },
-    { key: 'kesimpulan', label: '4 · Kesimpulan' },
-  ];
-
-  /** Generate 1 gambar AI kontekstual untuk 1 bagian khotbah literal (background slide). */
-  const illustrateSection = async (section: string): Promise<boolean> => {
-    if (!canWrite) return false;
-    setBusy(`imgsec-${section}`);
-    try {
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/sermon-image`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
-      addToast({ type: 'success', title: `Ilustrasi bagian ${section} dibuat (${d.used}/${d.max})` });
-      return true;
-    } catch (e) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate gambar.' });
-      return false;
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const illustrateMissingSections = async () => {
-    if (!canWrite) return;
-    setBusy('imgsec-all');
-    try {
-      let done = 0;
-      for (const s of KHUTBAH_LITERAL_SECTIONS) {
-        if (studio.presentation?.khutbahLiteral?.[s.key]) continue;
-        // eslint-disable-next-line no-await-in-loop
-        const ok = await illustrateSection(s.key);
-        if (!ok) break;
-        done += 1;
-      }
-      if (done === 0) addToast({ type: 'success', title: 'Semua bagian sudah bergambar.' });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /** Generate 1 gambar AI untuk 1 hari RHB (berlaku semua slide hari itu). */
-  const illustrateDay = async (day: number): Promise<boolean> => {
-    if (!canWrite) return false;
-    setBusy(`imgrhb-${day}`);
-    try {
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/rhb-image`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ day }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
-      addToast({ type: 'success', title: `Ilustrasi hari ${day} dibuat (${d.used}/${d.max})` });
-      return true;
-    } catch (e) {
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal generate gambar.' });
-      return false;
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const illustrateMissingDays = async () => {
-    if (!canWrite) return;
-    setBusy('imgrhb-all');
-    try {
-      let done = 0;
-      for (let day = 1; day <= 7; day += 1) {
-        if (studio.presentation?.rhbAi?.[String(day)]) continue;
-        // eslint-disable-next-line no-await-in-loop
-        const ok = await illustrateDay(day);
-        if (!ok) break;
-        done += 1;
-      }
-      if (done === 0) addToast({ type: 'success', title: 'Semua hari sudah bergambar.' });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /** Segarkan Bagian A/B mengikuti pola ibadah aktif (menimpa isi sekarang). */
   const refreshFlow = async () => {
     if (!canWrite) return;
     const pattern = weekMeta?.patternCode || 'MONOLOG';
@@ -866,38 +635,8 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     }
   };
 
-  const generateAiCover = async () => {
-    if (!canWrite) return;
-    if (driveAuth.checked && !driveAuth.ok) {
-      addToast({ type: 'error', title: 'Drive terputus — re-auth dulu (lihat peringatan di atas).' });
-      return;
-    }
-    setBusy('ai-image');
-    try {
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/generate-image`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: aiPrompt, style: coverArtStyle, coverStyle: 'AI' }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `Gagal generate gambar (server ${r.status}).`);
-      setStudio({ ...defaultStudio(), ...(d.week?.studio || {}) });
-      setAiPrompt('');
-      addToast({ type: 'success', title: `Gambar cover dibuat AI (${d.used}/${d.max})` });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Gagal generate gambar.';
-      if (/Drive terputus|DRIVE_AUTH_EXPIRED/i.test(msg)) {
-        setDriveAuth((s) => ({ ...s, checked: true, ok: false }));
-        await checkDriveAuth();
-      }
-      addToast({ type: 'error', title: msg });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const copyCaption = async (doc: 'pembekalan' | 'khutbah' | 'rhb', dayIndex?: number) => {    const content = {
+  const copyCaption = async (doc: 'pembekalan' | 'khutbah' | 'rhb', dayIndex?: number) => {
+    const content = {
       weekIndex,
       date: weekMeta?.date || '',
       theme: weekMeta?.theme || weekMeta?.mentoringTheme || weekMeta?.servingTheme || '',
@@ -1001,71 +740,53 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const assetDataUrl = async (fileId?: string): Promise<string | undefined> => {
-    if (!fileId) return undefined;
+  const uploadCoverFile = async (file: File) => {
     try {
-      const r = await fetch(`/api/didaskalia/asset/${encodeURIComponent(fileId)}`, { credentials: 'include' });
-      if (!r.ok) return undefined;
-      const blob = await r.blob();
-      return await new Promise<string>((resolve) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(String(fr.result || ''));
-        fr.readAsDataURL(blob);
-      });
-    } catch {
-      return undefined;
+      const fid = await uploadImage(file);
+      await save({ presentation: { ...(studio.presentation || {}), cover: fid, coverStyle: 'UPLOAD' } }, { silent: true });
+      addToast({ type: 'success', title: 'Cover terunggah' });
+    } catch (e) {
+      addToast({ type: 'error', title: e instanceof Error ? e.message : 'Gagal unggah cover.' });
     }
   };
 
-  /** Ambil gambar presentasi → data URL agar PDF identik dengan deck web. */
-  const buildPdfImages = async () => {
-    const pres = studio.presentation || {};
-    const rhbDayImages: Record<number, string> = {};
-    const rhbAi = pres.rhbAi && typeof pres.rhbAi === 'object' ? pres.rhbAi : {};
-    for (const p of ensurePaths(studio)) {
-      // Standar visual RHB: 1 gambar AI harian untuk semua halaman hari itu.
-      const dayImg = await assetDataUrl(rhbAi[String(p.pathIndex)]);
-      if (dayImg) rhbDayImages[p.pathIndex] = dayImg;
-    }
-    const khutbahSectionImages: Record<string, string> = {};
-    const khLit = pres.khutbahLiteral && typeof pres.khutbahLiteral === 'object' ? pres.khutbahLiteral : {};
-    for (const key of ['pengantar', 'bedahTeologis', 'jembatan', 'kesimpulan']) {
-      const d = await assetDataUrl(khLit[key]);
-      if (d) khutbahSectionImages[key] = d;
-    }
-    return { coverImage: await assetDataUrl(pres.cover), rhbDayImages, khutbahSectionImages };
+  const clearCover = () => {
+    void save({ presentation: { ...(studio.presentation || {}), cover: '' } }, { silent: true });
   };
 
-  const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload') => {
+  const generateDoc = useCallback(async (doc: 'pembekalan' | 'khutbah' | 'rhb', mode: 'download' | 'upload', studioOverride?: DidaskaliaStudio) => {
     if (!weekMeta) return;
+    const st = studioOverride || studio;
+    if (mode === 'upload' && st.sourceSignoff?.status === 'PENDING') {
+      if (!window.confirm('Naskah sumber belum disetujui HOD. Hasil impor tetap bisa diterbitkan. Lanjutkan unggah ke Drive?')) return;
+    }
     const patternCode = weekMeta.patternCode || 'MONOLOG';
     const patternName = patterns.find((p) => String(p.code || '').toUpperCase() === patternCode)?.name || null;
-    const opts = { version: (studio.render?.[doc]?.version || 0) + 1, serviceType: event?.serviceType || null, patternCode, patternName, ...(await buildPdfImages()) };
-    const week = { index: weekMeta.index, date: weekMeta.date, mentoringTheme: weekMeta.mentoringTheme, servingTheme: weekMeta.servingTheme, theme: weekMeta.theme, studio };
+    const opts = { version: (st.render?.[doc]?.version || 0) + 1, serviceType: event?.serviceType || null, patternCode, patternName, ...(await collectPdfImages(st)) };
+    const week = { index: weekMeta.index, date: weekMeta.date, mentoringTheme: weekMeta.mentoringTheme, servingTheme: weekMeta.servingTheme, theme: weekMeta.theme, studio: st };
     setBusy(`pdf-${doc}`);
     try {
       if (doc === 'pembekalan') {
-        const { filename, blob } = buildPembekalanPdf(week, studio, opts);
+        const { filename, blob } = buildPembekalanPdf(week, st, opts);
         if (mode === 'download') download(filename, blob);
         else {
           const uploaded = await uploadToDrive([{ filename, blob }], '01 Pembekalan Mentor - Co mentor');
-          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ chapterNo: studio.chapterNo, fundamentalFirman: studio.fundamentalFirman, kitabFokus: studio.kitabFokus, paths: studio.paths }), driveFolder: '01 Pembekalan Mentor - Co mentor' }) });
+          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ chapterNo: st.chapterNo, fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, paths: st.paths }), driveFolder: '01 Pembekalan Mentor - Co mentor' }) });
         }
       } else if (doc === 'khutbah') {
-        const { filename, blob } = buildKhutbahPdf(week, studio, opts);
+        const { filename, blob } = buildKhutbahPdf(week, st, opts);
         if (mode === 'download') download(filename, blob);
         else {
           const uploaded = await uploadToDrive([{ filename, blob }], '02 Ringkasan Khotbah');
-          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ fundamentalFirman: studio.fundamentalFirman, kitabFokus: studio.kitabFokus, sermon: studio.sermon }), driveFolder: '02 Ringkasan Khotbah' }) });
+          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, sermon: st.sermon }), driveFolder: '02 Ringkasan Khotbah' }) });
         }
       } else {
-        const docs = buildRhbPdfs(week, studio, opts);
+        const docs = buildRhbPdfs(week, st, opts);
         if (!docs.length) throw new Error('7 Path belum ada.');
         if (mode === 'download') docs.forEach((d) => download(d.filename, d.blob));
         else {
           const uploaded = await uploadToDrive(docs, '03 RHB 7 Hari');
-          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ chapterNo: studio.chapterNo, fundamentalFirman: studio.fundamentalFirman, kitabFokus: studio.kitabFokus, paths: studio.paths }), driveFolder: '03 RHB 7 Hari' }) });
+          await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/publish`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc, version: opts.version, files: uploaded, hash: hashContent({ chapterNo: st.chapterNo, fundamentalFirman: st.fundamentalFirman, kitabFokus: st.kitabFokus, paths: st.paths }), driveFolder: '03 RHB 7 Hari' }) });
         }
       }
       await load();
@@ -1075,49 +796,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     } finally {
       setBusy(null);
     }
-  }, [addToast, load, studio, weekIndex, weekMeta, ym]);
-
-  /** AI menyusun 7 Path lalu langsung membangun & mengunduh PDF Pembekalan (01). */
-  const generatePembekalanWithAi = useCallback(async () => {
-    if (!canWrite) return;
-    setBusy('ai-pembekalan');
-    setError(null);
-    try {
-      const discussionText = (studio.discussion || [])
-        .map((c) => `${c.userName || 'Tim'}${c.role ? ` (${c.role})` : ''}: ${c.text}`)
-        .join('\n');
-      const notes = [
-        comment,
-        useDiscussionContext && discussionText ? `Diskusi tim Didaskalia:\n${discussionText}` : '',
-      ].filter(Boolean).join('\n\n') || undefined;
-      const r = await fetch(`/api/didaskalia/studio/${ym}/${weekIndex}/draft`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ methods: studio.homileticMethods, notes, patternCode: weekMeta?.patternCode }),
-      });
-      const d = await readJson(r);
-      if (!r.ok) throw new Error(d.error || `AI gagal (server ${r.status}).`);
-      const nextStudio = { ...defaultStudio(), ...(d.week?.studio || {}) };
-      setStudio(nextStudio);
-      const week = {
-        index: weekIndex,
-        date: weekMeta?.date || '',
-        theme: weekMeta?.theme,
-        mentoringTheme: weekMeta?.mentoringTheme,
-        servingTheme: weekMeta?.servingTheme,
-        studio: nextStudio,
-      };
-      const { filename, blob } = buildPembekalanPdf(week, nextStudio, { version: (nextStudio.render?.pembekalan?.version || 0) + 1 });
-      download(filename, blob);
-      addToast({ type: 'success', title: 'AI menyusun 7 Path & PDF Pembekalan diunduh' });
-    } catch (e: unknown) {
-      setError(friendlyAiError(e));
-      addToast({ type: 'error', title: e instanceof Error ? e.message : 'AI gagal.' });
-    } finally {
-      setBusy(null);
-    }
-  }, [addToast, canWrite, comment, studio.discussion, studio.homileticMethods, useDiscussionContext, weekIndex, weekMeta, ym]);
+  }, [addToast, event?.serviceType, load, patterns, studio, weekIndex, weekMeta, ym]);
 
   const generateSchedule = async () => {
     setSchedBusy(true);
@@ -1166,10 +845,11 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
     </div>
   );
 
-  const studioTabs: Array<{ id: 'inti' | 'paths' | 'khotbah' | 'diskusi' | 'terbitkan' | 'pengetahuan' | 'jadwal'; label: string }> = [
+  const studioTabs: Array<{ id: StudioTab; label: string }> = [
     { id: 'inti', label: 'Inti' },
     { id: 'paths', label: '7 Path' },
     { id: 'khotbah', label: 'Khotbah' },
+    { id: 'gambar', label: 'Gambar' },
     { id: 'diskusi', label: 'Diskusi' },
     { id: 'terbitkan', label: 'Terbitkan' },
     { id: 'pengetahuan', label: 'Pengetahuan' },
@@ -1407,48 +1087,19 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-sky-200 bg-sky-50/50 p-3 space-y-3">
-              <p className="text-[11px] font-black text-[#1B1B1B]">MD Acuan Mingguan <span className="font-normal text-[#8C8880]">· input awal skenario baru (per pekan, bukan knowledge global)</span></p>
-              <div className="grid md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className={labelCls}>MD Service → Ringkasan Khotbah</label>
-                  <textarea
-                    value={mdServiceText}
-                    onChange={(e) => setMdServiceText(e.target.value)}
-                    rows={4}
-                    disabled={!canWrite}
-                    placeholder="Tempel isi For Service_*.md (MD bersih)…"
-                    className={inputCls}
-                  />
-                  <div className="flex flex-wrap gap-1.5">
-                    <button type="button" disabled={!canWrite || busy === 'md-parse'} onClick={() => void parseWeeklyMd('service')} className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-sky-600 text-white disabled:opacity-50">Parse & simpan acuan</button>
-                    {studio.sourceMd?.service && (
-                      <button type="button" disabled={!canWrite} onClick={() => void applyServiceToSermon()} className="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white disabled:opacity-50">Terapkan ke Ringkasan</button>
-                    )}
-                  </div>
-                  {studio.sourceMd?.service && <p className="text-[10px] text-emerald-700">✓ Acuan Service tersimpan pekan ini{studio.sourceMd.service?.info?.teksUtama ? ` · ${studio.sourceMd.service.info.teksUtama}` : ''}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className={labelCls}>MD RHB → 7 Path</label>
-                  <textarea
-                    value={mdRhbText}
-                    onChange={(e) => setMdRhbText(e.target.value)}
-                    rows={4}
-                    disabled={!canWrite}
-                    placeholder="Tempel isi For RHB_*.md…"
-                    className={inputCls}
-                  />
-                  <div className="flex flex-wrap gap-1.5">
-                    <button type="button" disabled={!canWrite || busy === 'md-parse'} onClick={() => void parseWeeklyMd('rhb')} className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-sky-600 text-white disabled:opacity-50">Parse & simpan acuan</button>
-                    {studio.sourceMd?.rhb && (
-                      <button type="button" disabled={!canWrite} onClick={() => void applyRhbToPaths()} className="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-[#D9D7D0] bg-white disabled:opacity-50">Terapkan ke 7 Path</button>
-                    )}
-                  </div>
-                  {studio.sourceMd?.rhb && <p className="text-[10px] text-emerald-700">✓ Acuan RHB tersimpan pekan ini{Array.isArray(studio.sourceMd.rhb?.paths) ? ` · ${studio.sourceMd.rhb.paths.length} Path` : ''}</p>}
-                </div>
-              </div>
-              {mdMsg && <p className="text-[11px] text-[#5C5850]">{mdMsg}</p>}
-            </div>
+            <DidaskaliaSourceImport
+              canWrite={canWrite}
+              canApprove={approval.canApprove}
+              ym={ym}
+              weekIndex={weekIndex}
+              studio={studio}
+              busy={busy}
+              setBusy={setBusy}
+              save={save}
+              onStudio={setStudio}
+              downloadPembekalan={(st) => generateDoc('pembekalan', 'download', st)}
+              addToast={addToast}
+            />
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <label className="inline-flex items-center gap-2 text-[11px] font-bold text-[#8C8880]">
                 Pola ibadah pekan ini
@@ -1474,23 +1125,26 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 </select>
               </label>
               <button type="button" onClick={() => onOpenPola?.()} className="text-[11px] font-bold text-sky-700 hover:underline">Lihat detail pola →</button>
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} title="Tahap 1: susun 7 Path + khotbah dari perikop & pola pekan. Hasil = pengajuan, menunggu persetujuan HOD." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
-                {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun draf 7 Path + khotbah
-              </button>
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" title="Tahap 2: perkaya per hari dari diskusi (butuh diskusi terisi + centang konteks). Berjalan 8x panggilan kecil; gagal 1 hari tak menggugurkan lain.">
+              {!hasSource && (
+                <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('draft')} title="Hanya bila belum ada naskah sumber. Hasil = pengajuan, menunggu persetujuan HOD." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50">
+                  {busy === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Susun dari nol
+                </button>
+              )}
+              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('enrich')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50" title="Opsional, kapan saja. Bukan syarat terbit. Butuh diskusi terisi dan centang konteks.">
                 {busy === 'enrich' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Perkaya dengan diskusi
               </button>
+              <span className="text-[10px] font-bold text-[#8C8880]">Opsional · kapan saja · bukan syarat terbit</span>
               {(studio.generation || 0) > 0 && (
                 <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${(studio.generation || 0) > 3 ? 'bg-amber-50 border border-amber-300 text-amber-700' : 'bg-[#FAF9F5] border border-[#D9D7D0] text-[#8C8880]'}`}>
                   Generasi ke-{studio.generation}{(studio.generation || 0) > 3 ? ' — disarankan maks 2-3×' : ''}
                 </span>
               )}
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} title="Segarkan ringkasan khotbah saja tanpa mengubah 7 Path." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50">
-                {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Ringkasan Khotbah
-              </button>
-              <button type="button" disabled={!canWrite || !!busy} onClick={() => void generatePembekalanWithAi()} title="Jalan pintas: susun draf lalu langsung unduh PDF Pembekalan (tanpa terbit ke Drive)." className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-50">
-                {busy === 'ai-pembekalan' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} AI + PDF Pembekalan
-              </button>
+              <details className="text-[11px]">
+                <summary className="cursor-pointer font-bold text-[#8C8880]">Lainnya</summary>
+                <button type="button" disabled={!canWrite || !!busy} onClick={() => void runAi('sermon')} title="Menyegarkan metode dan inti pesan. Outline dari naskah sumber tetap." className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50">
+                  {busy === 'sermon' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Presentation className="w-3.5 h-3.5" />} Segarkan metode &amp; inti pesan
+                </button>
+              </details>
               <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8C8880] ml-1">
                 <input
                   type="checkbox"
@@ -1510,52 +1164,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <div className="rounded-xl bg-sky-50 border border-sky-100 px-3 py-2">
               <p className="text-[11px] text-sky-900"><b>Kitab / Bagian Fokus statis sepekan{studio.kitabFokus ? `: ${studio.kitabFokus}` : ''}</b> — tampil sama di 7 hari RHB. <b>Bacaan</b> = porsi hari itu dari kitab tersebut; <b>Nats Pembimbing</b> = ayat pengaya yang berbeda tiap hari.</p>
             </div>
-            <div className="rounded-xl bg-white border border-[#D9D7D0]/60 p-3 space-y-2">
-              <p className="text-[11px] font-black text-[#1B1B1B]">Import MD lengkap (7 hari jadi — tanpa AI)</p>
-              <p className="text-[11px] text-[#8C8880]">Tempel MD format <code># PATH N</code> + <code>## Judul</code> + <code>**Ayat Renungan:**</code> + 5 section + <code>### Jembatan</code>. Parse → Terapkan menulis judul, nats, 5 section & jembatan verbatim. Bacaan tak diubah.</p>
-              <textarea value={mdFullText} onChange={(e) => setMdFullText(e.target.value)} rows={4} placeholder="# PATH 1 — MINGGU…&#10;## JUDUL&#10;**Ayat Renungan: …**&#10;### Pengantar…" disabled={!canWrite} className={`${inputCls} font-mono disabled:opacity-60`} />
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  disabled={!canWrite || busy === 'md-full-parse'}
-                  onClick={() => void parseFullRhb()}
-                  className="px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-50"
-                >
-                  {busy === 'md-full-parse' ? 'Memeriksa…' : 'Parse MD'}
-                </button>
-                {fullParsed?.length ? (
-                  <>
-                    <label className="text-[11px] text-[#1B1B1B] inline-flex items-center gap-1">
-                      <input type="radio" checked={fullMode === 'replace'} onChange={() => setFullMode('replace')} /> Timpa penuh
-                    </label>
-                    <label className="text-[11px] text-[#1B1B1B] inline-flex items-center gap-1">
-                      <input type="radio" checked={fullMode === 'merge'} onChange={() => setFullMode('merge')} /> Isi yang kosong
-                    </label>
-                    <button
-                      type="button"
-                      disabled={!canWrite}
-                      onClick={() => void applyFullRhb()}
-                      className="px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
-                    >
-                      Terapkan ke 7 Path
-                    </button>
-                  </>
-                ) : null}
-              </div>
-              {fullMsg ? <p className="text-[11px] text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">{fullMsg}</p> : null}
-            </div>
-            <div className="flex items-center gap-2 px-1">
-              <p className="text-[11px] text-[#8C8880]">1 gambar harian berlaku semua slide hari itu (background + overlay, seperti khotbah).</p>
-              <button
-                type="button"
-                disabled={!canWrite || !!busy}
-                onClick={() => void illustrateMissingDays()}
-                title="Generate gambar AI untuk tiap hari yang belum ada (kuota harian 7/pekan)"
-                className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
-              >
-                {busy === 'imgrhb-all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Ilustrasikan 7 hari
-              </button>
-            </div>
+            <p className="text-[11px] text-[#8C8880] px-1">Gambar harian dibuat di tab Gambar. Nats Pembimbing = ayat pengaya hari itu.</p>
             {paths.map((p, i) => {
               const open = expandedPath === p.pathIndex;
               return (
@@ -1577,7 +1186,26 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                   {open && (
                     <div className="px-4 pb-4 space-y-2 border-t border-[#EFEDE8]">
                       <div className="grid sm:grid-cols-2 gap-2 pt-3">
-                        <div><label className={labelCls}>Judul Path (Inggris)</label><input value={p.title} onChange={(e) => setPath(i, { title: e.target.value })} className={inputCls} /></div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className={labelCls}>Judul Path</label>
+                            <button type="button" disabled={!!busy || !canWrite} onClick={() => void proposeTranslate('path', p.pathIndex)} className="text-[10px] font-bold text-sky-700">Terjemahkan ke English</button>
+                          </div>
+                          <input value={p.title} onChange={(e) => setPath(i, { title: e.target.value })} className={inputCls} />
+                          {enDraft[`path:${p.pathIndex}`] && (
+                            <div className="mt-1 rounded-xl border border-sky-200 bg-sky-50 p-2 space-y-1">
+                              <label className={labelCls}>Usulan judul English</label>
+                              <input value={enDraft[`path:${p.pathIndex}`].titleEn} onChange={(e) => setEnDraft((s) => ({ ...s, [`path:${p.pathIndex}`]: { ...s[`path:${p.pathIndex}`], titleEn: e.target.value } }))} className={inputCls} />
+                              <label className={labelCls}>Usulan ringkasan English</label>
+                              <textarea value={enDraft[`path:${p.pathIndex}`].summaryEn} onChange={(e) => setEnDraft((s) => ({ ...s, [`path:${p.pathIndex}`]: { ...s[`path:${p.pathIndex}`], summaryEn: e.target.value } }))} rows={2} className={inputCls} />
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => void savePathTranslation(i, p.pathIndex)} className="text-[10px] font-bold text-white bg-sky-600 px-3 py-1 rounded-full">Simpan terjemahan</button>
+                                <button type="button" onClick={() => setEnDraft((s) => { const c = { ...s }; delete c[`path:${p.pathIndex}`]; return c; })} className="text-[10px] font-bold text-[#8C8880]">Batal</button>
+                              </div>
+                            </div>
+                          )}
+                          {(p.titleEn || p.summaryEn) && !enDraft[`path:${p.pathIndex}`] && <p className="text-[10px] text-[#8C8880] mt-1">English: {p.titleEn || '—'}{p.summaryEn ? ` · ${p.summaryEn}` : ''}</p>}
+                        </div>
                         <div><label className={labelCls}>Ringkasan Hari (1 kalimat)</label><input value={p.summary || ''} onChange={(e) => setPath(i, { summary: e.target.value })} placeholder="Gambaran besar hari itu" className={inputCls} /></div>
                         <div><label className={labelCls}>Label Hari</label><input value={p.dayLabel} onChange={(e) => setPath(i, { dayLabel: e.target.value })} className={inputCls} /></div>
                         <div><label className={labelCls}>Bacaan Alkitab (dari Kitab Fokus)</label><input value={p.bacaanRef || ''} onChange={(e) => setPath(i, { bacaanRef: e.target.value })} placeholder={studio.kitabFokus ? `Porsi hari ini dari ${studio.kitabFokus}` : 'Porsi hari ini dari Kitab Fokus'} className={inputCls} /></div>
@@ -1594,7 +1222,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <label className={labelCls}>Perenungan</label>
-                          <button type="button" disabled={!!busy} onClick={() => void aiSuggest(`path:${i}:reflection`, 'Perenungan', p.reflection, `PATH:${p.pathIndex}`)} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> AI</button>
+                          <button type="button" disabled={!!busy} onClick={() => void aiSuggest(`path:${i}:reflection`, 'Perenungan', p.reflection, `PATH:${p.pathIndex}`)} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> Haluskan teks</button>
                         </div>
                         <textarea value={p.reflection} onChange={(e) => setPath(i, { reflection: e.target.value })} rows={4} className={inputCls} />
                         {suggestionBox(`path:${i}:reflection`, (t) => setPath(i, { reflection: t }))}
@@ -1613,22 +1241,6 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                           <BookOpen className="w-3.5 h-3.5 text-sky-700" />
                           <p className="text-[11px] font-black text-sky-800">RHB Harian — 5 Section</p>
                           <span className="ml-auto text-[10px] text-[#8C8880]">visual: 1 gambar AI harian</span>
-                        </div>
-                        <div className="flex items-center gap-2 rounded-lg bg-white border border-[#EFEDE8] p-2">
-                          {studio.presentation?.rhbAi?.[String(p.pathIndex)] ? (
-                            <img src={`/api/didaskalia/asset/${encodeURIComponent(String(studio.presentation.rhbAi[String(p.pathIndex)]))}`} alt="" className="w-10 h-10 rounded-lg object-cover border border-[#EFEDE8]" />
-                          ) : (
-                            <span className="text-[10px] italic text-[#8C8880]">belum ada gambar AI harian</span>
-                          )}
-                          <button
-                            type="button"
-                            disabled={!canWrite || !!busy}
-                            onClick={() => void illustrateDay(p.pathIndex)}
-                            title="Generate gambar AI hari ini dari tema + nats harian"
-                            className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-600 text-white text-[10px] font-bold disabled:opacity-50"
-                          >
-                            {busy === `imgrhb-${p.pathIndex}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />} Ilustrasikan hari ini
-                          </button>
                         </div>
                         {ensureRhbSections(p.rhbSections).map((sec) => (
                           <div key={sec.key} className="rounded-lg bg-white border border-[#EFEDE8] p-2 space-y-1.5">
@@ -1659,7 +1271,26 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               <h4 className="text-sm font-black text-[#1B1B1B]">Ringkasan Khotbah & Kerangka Slide</h4>
             </div>
             <div><label className={labelCls}>Metode</label><input value={(studio.sermon?.methods || []).join(', ')} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, methods: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } }))} className={inputCls} /></div>
-            <div><label className={labelCls}>Inti Pesan (Big Idea) — 1 kalimat</label><input value={studio.sermon?.bigIdea || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, bigIdea: e.target.value } }))} placeholder="Satu kalimat inti pesan pekan ini" className={inputCls} /></div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>Inti Pesan (Big Idea) — 1 kalimat</label>
+                <button type="button" disabled={!!busy || !canWrite} onClick={() => void proposeTranslate('sermon')} className="text-[10px] font-bold text-sky-700">Terjemahkan ke English</button>
+              </div>
+              <input value={studio.sermon?.bigIdea || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, bigIdea: e.target.value } }))} placeholder="Satu kalimat inti pesan pekan ini" className={inputCls} />
+              {enDraft.sermon && (
+                <div className="mt-1 rounded-xl border border-sky-200 bg-sky-50 p-2 space-y-1">
+                  <label className={labelCls}>Usulan inti pesan English</label>
+                  <input value={enDraft.sermon.bigIdeaEn} onChange={(e) => setEnDraft((s) => ({ ...s, sermon: { ...s.sermon, bigIdeaEn: e.target.value } }))} className={inputCls} />
+                  <label className={labelCls}>Usulan ringkasan English</label>
+                  <textarea value={enDraft.sermon.summaryEn} onChange={(e) => setEnDraft((s) => ({ ...s, sermon: { ...s.sermon, summaryEn: e.target.value } }))} rows={3} className={inputCls} />
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => void saveSermonTranslation()} className="text-[10px] font-bold text-white bg-sky-600 px-3 py-1 rounded-full">Simpan terjemahan</button>
+                    <button type="button" onClick={() => setEnDraft((s) => { const c = { ...s }; delete c.sermon; return c; })} className="text-[10px] font-bold text-[#8C8880]">Batal</button>
+                  </div>
+                </div>
+              )}
+              {(studio.sermon?.bigIdeaEn || studio.sermon?.summaryEn) && !enDraft.sermon && <p className="text-[10px] text-[#8C8880] mt-1">English tersimpan di samping naskah Indonesia.</p>}
+            </div>
             <div className="grid sm:grid-cols-2 gap-3">
               <div><label className={labelCls}>Teks Utama Sermon (ref)</label><input value={studio.sermon?.teksUtama?.ref || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), ref: e.target.value } } }))} placeholder="mis. 2 Korintus 5:21" className={inputCls} /></div>
               <div><label className={labelCls}>Kutipan singkat Teks Utama</label><input value={studio.sermon?.teksUtama?.text || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, teksUtama: { ...(s.sermon?.teksUtama || { ref: '', text: '' }), text: e.target.value } } }))} placeholder="Kutipan maks 180 karakter" className={inputCls} /></div>
@@ -1727,7 +1358,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className={labelCls}>Ringkasan</label>
-                <button type="button" disabled={!!busy} onClick={() => void aiSuggest('sermon:summary', 'Ringkasan Khotbah', studio.sermon?.summary || '', 'SERMON')} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> AI</button>
+                <button type="button" disabled={!!busy} onClick={() => void aiSuggest('sermon:summary', 'Ringkasan Khotbah', studio.sermon?.summary || '', 'SERMON')} className="text-[10px] font-bold text-sky-700 inline-flex items-center gap-1"><Wand2 className="w-3 h-3" /> Haluskan teks</button>
               </div>
               <textarea value={studio.sermon?.summary || ''} onChange={(e) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: e.target.value } }))} rows={5} className={inputCls} />
               {suggestionBox('sermon:summary', (t) => setStudio((s) => ({ ...s, sermon: { ...s.sermon, summary: t } })))}
@@ -1797,49 +1428,25 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
               <p className="text-[10px] text-[#8C8880]">Gambaran 7 hari diambil dari ringkasan tiap Path di atas.</p>
             </div>
 
-            <div className="space-y-2">
-              <div className="rounded-xl bg-[#F5FBFF] border border-sky-100 p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-[11px] font-black text-sky-800">
-                    Background per bagian (standar literal): {KHUTBAH_LITERAL_SECTIONS.filter((s) => studio.presentation?.khutbahLiteral?.[s.key]).length}/4 bagian
-                  </p>
-                  <button
-                    type="button"
-                    disabled={!canWrite || !!busy}
-                    onClick={() => void illustrateMissingSections()}
-                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 text-white text-[11px] font-bold disabled:opacity-50"
-                    title="Generate gambar AI kontekstual untuk tiap bagian khotbah yang belum ada"
-                  >
-                    {busy === 'imgsec-all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Ilustrasikan per bagian
-                  </button>
-                </div>
-                {KHUTBAH_LITERAL_SECTIONS.map((s) => {
-                  const fid = studio.presentation?.khutbahLiteral?.[s.key];
-                  return (
-                    <div key={s.key} className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-[#8C8880] w-32 shrink-0">{s.label}</span>
-                      {fid ? (
-                        <img src={`/api/didaskalia/asset/${encodeURIComponent(String(fid))}`} alt="" className="w-10 h-10 rounded-lg object-cover border border-[#EFEDE8]" />
-                      ) : (
-                        <span className="text-[10px] italic text-[#8C8880]">belum ada gambar</span>
-                      )}
-                      <button
-                        type="button"
-                        disabled={!canWrite || !!busy}
-                        onClick={() => void illustrateSection(s.key)}
-                        className="ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-[10px] font-bold disabled:opacity-50"
-                        title={`Generate ilustrasi AI bagian ${s.label}`}
-                      >
-                        {busy === `imgsec-${s.key}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />} {fid ? 'Regenerate' : 'AI'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <p className="text-[11px] text-[#8C8880]">Gambar bagian khotbah dibuat di tab Gambar (bersama cover dan 7 hari RHB).</p>
           </div>
 
           </>)}
+          {tab === 'gambar' && (
+            <DidaskaliaGambarPanel
+              canWrite={canWrite}
+              ym={ym}
+              weekIndex={weekIndex}
+              studio={studio}
+              driveChecked={driveAuth.checked}
+              driveOk={driveAuth.ok}
+              onStudio={setStudio}
+              onDriveFail={() => { setDriveAuth((s) => ({ ...s, checked: true, ok: false })); void checkDriveAuth(); }}
+              uploadCover={uploadCoverFile}
+              clearCover={clearCover}
+              addToast={addToast}
+            />
+          )}
           {tab === 'diskusi' && (<>
           {/* Diskusi */}
           <div id="didaskalia-discussion" className="bg-white rounded-2xl border border-[#D9D7D0]/60 p-4 space-y-3">
@@ -1890,7 +1497,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 title="Isi kotak dengan template instruksi pengayaan"
                 className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-bold disabled:opacity-50"
               >
-                <Wand2 className="w-3.5 h-3.5" /> Kembangkan
+                <Wand2 className="w-3.5 h-3.5" /> Isi contoh catatan
               </button>
               <button type="button" onClick={() => void addComment()} disabled={!canWrite || !comment.trim()} className="px-3 rounded-xl bg-[#1B1B1B] text-white disabled:opacity-50"><Send className="w-4 h-4" /></button>
               <button
@@ -1900,7 +1507,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold disabled:opacity-50"
                 title="Unggah .md/.txt sebagai pengetahuan tim untuk AI"
               >
-                {busy === 'discussion-upload' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} .md
+                {busy === 'discussion-upload' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Unggah ke Pengetahuan
               </button>
               <input ref={discussionFileRef} type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" className="hidden" onChange={(e) => void uploadDiscussionFile(e.target.files?.[0])} />
             </div>
@@ -1934,64 +1541,7 @@ export const DidaskaliaStudioPanel: React.FC<{ yearMonth?: string; weekIndex?: n
             <p className="text-[11px] text-[#8C8880]">
               Deck presentasi per pekan (Pembekalan/Khutbah) dan per hari (RHB). Konten dibekukan saat dokumen dirilis.
             </p>
-            <div className="rounded-xl border border-[#EFEDE8] p-3 space-y-2">
-              <p className="text-[11px] font-black text-[#1B1B1B]">Gambar Cover — background + overlay teks</p>
-              {driveAuth.checked && !driveAuth.ok && (
-                <p className="text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                  Koneksi Drive terputus (token kedaluwarsa/dicabut). Generate & unggah gambar akan gagal — jalankan `npm run drive:auth` lalu `npm run env:sync-gdrive-token`, kemudian deploy ulang.
-                </p>
-              )}
-              <div className="grid sm:grid-cols-2 gap-2">
-                <ImageSlot
-                  label="Cover pekan (unggah manual)"
-                  fileId={studio.presentation?.cover}
-                  onUpload={async (f) => setCoverImage(await uploadImage(f))}
-                  onClear={() => setCoverImage('')}
-                />
-                <div className="space-y-1.5">
-                  <label className={labelCls}>Pola gambar cover</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(['AI', 'UPLOAD', 'MOTIF'] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setCoverStyle(s)}
-                        title={s === 'AI' ? 'Generate AI per pekan (default)' : s === 'UPLOAD' ? 'Unggah manual via slot kiri' : 'Pakai ulang motif seri (upload sekali, pilih file yang sama)'}
-                        className={`text-[11px] px-3 py-1.5 rounded-full border font-bold ${coverStyle === s ? 'bg-[#1B1B1B] text-white border-[#1B1B1B]' : 'bg-white border-[#D9D7D0] text-[#8C8880]'}`}
-                      >
-                        {s === 'AI' ? 'AI generate' : s === 'UPLOAD' ? 'Upload manual' : 'Motif seri'}
-                      </button>
-                    ))}
-                  </div>
-                  <label className={labelCls}>Prompt gambar AI (opsional)</label>
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    rows={3}
-                    placeholder="mis. suasana pelayanan, tangan terbuka, cahaya hangat, ruang kosong di atas"
-                    className={inputCls}
-                  />
-                  <button
-                    type="button"
-                    disabled={!canWrite || busy === 'ai-image' || aiImages.length >= 3}
-                    onClick={() => void generateAiCover()}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-brand to-brand-end text-white text-xs font-bold disabled:opacity-50"
-                  >
-                    {busy === 'ai-image' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Generate gambar cover (AI)
-                  </button>
-                  <label className={labelCls}>Gaya visual AI</label>
-                  <select value={coverArtStyle} onChange={(e) => setCoverArtStyle(e.target.value)} className={inputCls}>
-                    <option value="cinematic">Sinematik hangat (default)</option>
-                    <option value="community">Komunitas hangat Indonesia</option>
-                    <option value="minimal">Minimal simbolik</option>
-                  </select>
-                  <p className="text-[10px] text-[#8C8880]">
-                    Kuota AI: <b>{aiImages.length}/3</b> pekan ini · model gpt-image-1-mini (~$0.015/gambar). Teks ditulis otomatis di atas gambar.
-                    <br />Jika muncul "model belum aktif", aktifkan akses model gambar di project OpenAI — atau pakai unggah manual.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <p className="text-[11px] text-[#8C8880]">Gambar cover, bagian khotbah, dan hari RHB ada di tab <button type="button" onClick={() => setTab('gambar')} className="font-bold text-sky-700">Gambar</button>. Unduh PDF memakai naskah yang tersimpan. Bila naskah sumber masih menunggu HOD, unggah ke Drive minta konfirmasi — pekan lama tanpa pengajuan tetap langsung terbit.</p>
             <div className="flex flex-wrap gap-2">
               <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" onClick={() => rememberPortalPlace()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold">
                 <ExternalLink className="w-3.5 h-3.5" /> Pembekalan
