@@ -1,5 +1,20 @@
 # GEHC Portal — Handoff
 
+## Current — Penutup Sesi dan liturgi baku (22 Okt 2026)
+
+**Minta:** momen khas pola menjadi item terakhir Didaskalia (`Penutup Sesi · <Nama>`); liturgi ibadah tetap `Persembahan & Doa` 10 dan `Lagu & Doa Penutup` 5, divisi LITURGIA. Mission Sequence: Konklusi = firman penutup, bukan commissioning; commissioning bukan lagi tersimpan di dalam persembahan. Branch baru dari `staging` `dd8b245`. Jangan sentuh `main` atau database.
+
+**Done:**
+- Mission Sequence 120': Praise 10, Sesi 1 · Snack & Merge 10, Sesi 2 · Kode Alkitab 15, Sesi 3 · Mission Room 30, Presentasi Kelompok 20, Konklusi 10, Penutup Sesi · Commissioning & Deklarasi 10, Persembahan & Doa 10, Lagu & Doa Penutup 5.
+- Debat: Konklusi sebelum liturgi, plus Lagu & Doa Penutup 5 (baku 145'). Bedah Film: persembahan pindah ke sesudah Konklusi (baku 155'). Monolog: Lagu & Doa Penutup 5 terpisah (baku 125'). Creative Lab sudah sesuai. Post-to-Post tidak ditambah blok persembahan.
+- Id segmen peserta `komitmen` tetap; label tampilannya Penutup Sesi. Kunci fase internal tidak diganti. Seed hanya jalan bila file dieksekusi langsung.
+
+**Next:** `npm run db:seed:worship:staging` bila katalog tersimpan harus mengikuti urutan ini. QA browser butuh database.
+
+**Verifikasi:** `tsc --noEmit` (heap 4096) bersih. `npm test` **165 file / 1313 tes** lulus. `npm run build` lulus. Database dan browser tidak dijalankan.
+
+**Commands:** `NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit` · `npm run test` · `npm run build` · branch `cursor/penutup-sesi-liturgi-926a`.
+
 ## Current — Rundown lama, kuota stasiun, kontrol mandiri (22 Okt 2026)
 
 **Minta:** sesi `sesi-2026-10-25-creative-lab` masih menampilkan rundown katalog lama (seed staging belum dijalankan); kartu kelompok menulis `(0/4)` sementara label foto `(maks 2)`; URL kontrol mandiri kosong (“Belum ada sesi untuk pekan ini”) sementara kontrol di portal tampil. Branch baru dari `staging` `b373d71`. Jangan sentuh `main` atau database.

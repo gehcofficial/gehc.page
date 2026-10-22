@@ -17,9 +17,9 @@
 
 ## 2. Aturan elastis (inti sebagai jangkar)
 
-- **Inti panjang** (Debat ±140, Bedah Film ±155): kurangi **blok lain** — pembuka hemat, penutup gabung, pasca 5'. Isi pola tidak dipotong.
+- **Inti panjang** (Debat ±145, Bedah Film ±155): kurangi **blok lain** — pembuka hemat, penutup gabung, pasca 5'. Isi pola tidak dipotong.
 - **Inti kurang** (Post-to-Post 60): **tambah di Didaskalia** — menu baku: tambah waktu segmen inti, monolog conclusi oleh speaker, kesaksian, 1 pertanyaan pendalaman, bedah 1 bait lagu.
-- Monolog gabungan 120 / 3 Sequences 120: hampir pas, tambahan kecil atau jalan apa adanya. Dual Monolog dilebur ke Monolog (arsip).
+- Monolog gabungan 125 / Mission Sequence 120: hampir pas, tambahan kecil atau jalan apa adanya. Dual Monolog dilebur ke Monolog (arsip). Katalog liturgi baku: `docs/product/rundown-writing.md`.
 
 ## 3. Item auto-wajib (semua ibadah)
 
@@ -34,7 +34,7 @@ diucapkan eksplisit, pemilik satu nama, durasi gabungan ditulis di rundown.
 
 | Gabungan | Contoh | Aturan |
 |---|---|---|
-| Persembahan + doa pra-inti | Bedah Film: kantong jalan sebelum film, doa = doa sebelum nonton | ±5' kantong + 1 doa menyebut persembahan & film |
+| Persembahan & Doa lalu Lagu & Doa Penutup | Semua pola yang punya liturgi, sesudah item terakhir Didaskalia | Baku 10' + 5', divisi Liturgia. Bukan sebelum film |
 | Syafaat = doa tutup (tanpa berkat terpisah) | Pola kontemplatif | Satu doa; berkat dilebur di kalimat penutup |
 | Terima kasih tuan rumah = pengumuman | Semua pola | 1 slot ±3' oleh Pembawa Acara |
 | Lesson Learned = wrap-up inti | Post-to-Post, 3 Sequences | Chip/refleksi dihitung lesson, tanpa segmen tambahan |
@@ -111,15 +111,15 @@ Status segmen: `tetap | gabung→[segmen] | hemat | tambah | paralel`.
 
 Dual Monolog diarsipkan dan diserap seluruhnya (bedah lagu, Satu Kata, deep sharing, dua suara opsional, undian). Sesi lama otomatis migrasi ke pola gabungan.
 
-### Debat (±175', mode hemat)
+### Debat (hemat ±150')
 
 | Segmen | Menit | Status |
 |---|---|---|
 | Pra + pembuka hemat (1 lagu) | 10 | hemat |
 | 3 ronde × 20' (bukan 5) | 100 | tetap (varian padat) |
-| Persembahan + transisi | 10 | tetap |
-| Konklusi + Trap Reveal + komitmen | 25 | tetap |
-| Syafaat = doa tutup | 5 | gabung |
+| Konklusi + Trap Reveal + komitmen | 20 | sebelum liturgi |
+| Persembahan & Doa | 10 | liturgi baku |
+| Lagu & Doa Penutup | 5 | liturgi baku |
 | Foto (pasca minimal) | 5 | hemat |
 
 Tiap ronde (20') = 11 langkah bertimer **di layar & peserta**: The Reveal 1′ ·
@@ -137,26 +137,26 @@ HP dikarantina (AI hanya saat Brainstorming). Juri menilai 4 kriteria berbobot
 | Registrasi Ulang | 5 | tetap |
 | Doa Petugas (Persiapan Ruang & Perlengkapan dan Cek Slide & Sound (paralel)) | 5 | tetap (T-minus) |
 | Praise & Worship | 5 | tetap |
-| Persembahan & Doa | 10 | tetap |
 | Firman & Briefing (Likert Awal di catatan) | 5 | tetap |
 | Sesi 1 · Movie Breakdown (durasi film di catatan) + konsumsi (paralel) | 90 | tetap |
 | Konklusi (Likert Akhir, chip, 2 kesaksian di catatan) | 15 | tetap |
-| Lagu & Doa Penutup | 5 | tetap |
+| Persembahan & Doa | 10 | sesudah konklusi |
+| Lagu & Doa Penutup | 5 | liturgi baku |
 | Terima Kasih & Pengumuman | 5 | tetap |
 | HUT & Doa | 5 | tetap |
 | Foto Bersama | 5 | tetap |
 
-### 3 Sequences (±165')
+### Mission Sequence (120')
 
 | Segmen | Menit | Status |
 |---|---|---|
 | Praise & Worship | 10 | tetap |
 | Sesi 1 · Snack & Merge, Sesi 2 · Kode Alkitab, Sesi 3 · Mission Room | 55 | tetap |
 | Presentasi Kelompok | 20 | tetap |
-| Persembahan & Doa (khotbah di catatan) | 15 | tetap |
-| Konklusi (pengutusan di catatan) | 15 | tetap |
-| Syafaat + berkat + terima kasih tuan rumah | 10 | gabung→commissioning |
-| Foto + pasca | 10 | tetap |
+| Konklusi (firman penutup) | 10 | pisah dari persembahan |
+| Penutup Sesi · Commissioning & Deklarasi | 10 | pengutusan, bukan Konklusi |
+| Persembahan & Doa | 10 | liturgi baku |
+| Lagu & Doa Penutup | 5 | liturgi baku |
 
 ## 8. Peran per segmen (dari seed penatalayan, tanpa peran baru)
 

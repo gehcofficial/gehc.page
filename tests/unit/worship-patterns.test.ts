@@ -185,6 +185,8 @@ describe('worship-patterns: patternBlock semua pola', () => {
     const lines = patternBlock({ code: 'THREE_SEQUENCES', name: 'Mission Sequence', phases: [], playbook: 'x' }).join('\n');
     expect(lines).toContain('tim gabungan');
     expect(lines).toContain('Sesi 3 · Mission Room');
+    expect(lines).toContain('Penutup Sesi · Commissioning & Deklarasi');
+    expect(lines).toContain('bukan di Konklusi');
   });
 
   it('CREATIVE_LAB memakai 6 kartu jar + stasiun paralel', () => {

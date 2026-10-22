@@ -250,5 +250,5 @@ Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto
 4. Layar dengan `?code=` di dalam hash tidak menanyakan kode lagi.
 5. Foto Pot/Tas masuk `Hasil Karya/<kelompok>`; foto bersama masuk
    `Foto Kelompok/<kelompok>` di bawah folder event `[EV:…]`.
-6. Mission Sequence maks 5 tim gabungan. Tombol **Pasangan default** tidak menimpa papan sampai disimpan. Panduan judul: `docs/product/rundown-writing.md`.
+6. Mission Sequence maks 5 tim gabungan. Tombol **Pasangan default** tidak menimpa papan sampai disimpan. Urutan tutup: Konklusi (firman), Penutup Sesi · Commissioning & Deklarasi, Persembahan & Doa 10, Lagu & Doa Penutup 5. Panduan judul: `docs/product/rundown-writing.md`.
 7. `npm run lint` + `npm run test`.

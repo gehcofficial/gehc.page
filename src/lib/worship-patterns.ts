@@ -8,7 +8,7 @@ export type PhaseAnchor = 'PRA' | 'ACARA' | 'PASCA';
 
 /** Varian pembuka fase Praise & Worship (total menit tetap). */
 export type OpeningVariant = 'DOA' | 'LAGU' | 'KEDUANYA';
-/** Varian persembahan + doa: HEMAT = 3 doa sekaligus; PENUH = syafaat & tutup pisah + lagu selingan. */
+/** Varian persembahan: HEMAT = doa persembahan dan syafaat sekaligus; PENUH = syafaat terpisah + lagu selingan. Doa tutup ada di Lagu & Doa Penutup. */
 export type OfferingVariant = 'HEMAT' | 'PENUH';
 
 /** Pilihan varian per pekan (disimpan di studio week, bukan katalog). */
@@ -291,8 +291,8 @@ export function patternVariantText(variant?: WorshipPatternVariant | null): stri
         : 'Pembuka: doa buka 2 menit + 1 lagu buka + praise/worship dalam 15 menit (kurangi 1 praise bila perlu).';
   const offer =
     v.offering === 'PENUH'
-      ? `Persembahan mode PENUH (+${OFFERING_PENUH_DELTA_MIN} menit): kantong jalan + lagu 1 → doa syafaat → lagu selingan → doa tutup + berkat (syafaat & tutup pisah, tiap doa diucapkan eksplisit).`
-      : 'Persembahan mode HEMAT: kantong jalan; doa persembahan + syafaat + tutup sekaligus.';
+      ? `Persembahan mode PENUH (+${OFFERING_PENUH_DELTA_MIN} menit): kantong jalan + lagu 1 → doa syafaat → lagu selingan. Doa tutup dan berkat tetap di Lagu & Doa Penutup.`
+      : 'Persembahan mode HEMAT: kantong jalan; doa persembahan dan syafaat sekaligus. Doa tutup dan berkat ada di Lagu & Doa Penutup.';
   return `${open} ${offer}`;
 }
 

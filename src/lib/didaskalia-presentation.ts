@@ -574,7 +574,7 @@ export function patternTechnicalBullets(patternCode?: string, patternName?: stri
       return [
         'Bagi 5 tim gabungan (2 kelompok mentoring per tim) sebelum Sesi 1 · Snack & Merge. Tiap tim menjalankan seluruh misi; peran internal hanya pembagian tugas.',
         'Komando countdown tiap sesi tanpa jeda (Snack & Merge → Kode Alkitab → Mission Room).',
-        'Atur Presentasi Kelompok lalu Konklusi (pengutusan).',
+        'Atur Presentasi Kelompok, Konklusi (firman penutup), lalu Penutup Sesi · Commissioning & Deklarasi. Liturgi tetap Persembahan & Doa 10 dan Lagu & Doa Penutup 5.',
         close,
       ];
     case 'CREATIVE_LAB':
