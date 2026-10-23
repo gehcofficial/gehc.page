@@ -489,10 +489,21 @@ export function buildPembekalanPdf(week: DidaskaliaWeek, studio: DidaskaliaStudi
   w.y = 22;
   w.label(`Bagian A · Untuk ${delivererLabel(opts.serviceType)}`, C.accent);
   w.title('Garis Besar Khotbah (4 Komponen)', 20);
-  const garis = extractGarisBesar(sermon.outline);
+  const garis = extractGarisBesar(sermon.outline, {
+    weekIndex: week.index,
+    date: String(week.date || ''),
+    theme: week.theme || '',
+    chapterNo: studio.chapterNo || '',
+    fundamentalFirman: studio.fundamentalFirman || { ref: '', text: '' },
+    kitabFokus: studio.kitabFokus || '',
+    paths: studio.paths || [],
+    sermon,
+    images: studio.presentation || {},
+  });
   garis.forEach((g, i) => {
     w.numbered(i + 1, g.title);
     w.richParagraph(g.sentence);
+    w.richParagraph(`Pratinjau · Sumber: Ringkasan Khotbah §${g.no} (sunting di doc 02).`);
   });
   const ym = String(week.date || '').slice(0, 7);
   w.callout(

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useActiveAccess } from '../../hooks/useActiveAccess';
 import { SUB_DIVISIONS } from '../../lib/pantatugas';
 import { Calendar, FileText, Users, Megaphone, Heart, HandHeart, Store, BookOpen, Flame } from 'lucide-react';
 
@@ -156,6 +157,7 @@ interface Props {
 }
 
 export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eventDate, serviceType, driveFolderId, discussions = [], curriculumFiles, onPostUpdate, canWrite }) => {
+  const { canView01, canView01Reason } = useActiveAccess();
   const [phase, setPhase] = useState<Phase>('pre');
   // By-event Kurikulum 3 sub — sistem baca per subfolder dan posisikan (seperti RHB) — sinkron dengan parent bila ada
   const [driveSubFiles, setDriveSubFiles] = useState<Record<string, Array<{ id: string; name: string; webViewLink?: string }>>>({});
@@ -265,6 +267,17 @@ export const EventDivisionPhaseTabs: React.FC<Props> = ({ division, eventId, eve
                         <a key={f.id} href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-sky-700 hover:underline">📄 {f.name}</a>
                       ))}
                     </div>
+                  )}
+                  {canView01 && (driveSubFiles['01 Pembekalan Mentor - Co mentor'] || []).length > 0 && (
+                    <div className="pt-1 space-y-1">
+                      <p className="text-[10px] font-bold text-amber-800 uppercase">Pembekalan (by event 01 — setelah RHB & Khotbah):</p>
+                      {(driveSubFiles['01 Pembekalan Mentor - Co mentor'] || []).map((f) => (
+                        <a key={f.id} href={f.webViewLink || '#'} target="_blank" rel="noopener noreferrer" className="block text-xs font-semibold text-amber-800 hover:underline">📄 {f.name}</a>
+                      ))}
+                    </div>
+                  )}
+                  {!canView01 && canView01Reason && sub === 'Kurikulum & Pembekalan' && (
+                    <p className="pt-2 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">{canView01Reason}</p>
                   )}
                 </>
               )}

@@ -29,7 +29,7 @@ function nsFromRoles(authUser: unknown): string {
 export const IbadahMingguanPanel: React.FC = () => {
   const { authUser } = useApp();
   const portalNs = currentPortalNs(nsFromRoles(authUser));
-  const { isPriv, canView01, canView03, canViewInternal, canViewBonding } = useActiveAccess();
+  const { isPriv, canView01, canView01Reason, canView03, canView03Reason, canViewInternal, canViewBonding } = useActiveAccess();
 
   const [allEvents, setAllEvents] = useState<ServiceEvent[]>([]);
   const [selectedKind, setSelectedKind] = useState<string>('UMUM');
@@ -174,20 +174,25 @@ export const IbadahMingguanPanel: React.FC = () => {
                       <Presentation className="w-3.5 h-3.5" /> Presentasi Web (Studio)
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                      {canView01 && (
-                        <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
-                          <ExternalLink className="w-3 h-3" /> Pembekalan
-                        </a>
-                      )}
-                      <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
-                        <ExternalLink className="w-3 h-3" /> Ringkasan Khotbah
-                      </a>
                       {canView03 && (
                         <a href={materialHashPath({ doc: 'rhb', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-emerald-200 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
                           <ExternalLink className="w-3 h-3" /> RHB 7 Hari
                         </a>
                       )}
+                      <a href={materialHashPath({ doc: 'khutbah', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-200 px-3 py-1.5 text-[11px] font-bold text-sky-800">
+                        <ExternalLink className="w-3 h-3" /> Ringkasan Khotbah
+                      </a>
+                      {canView01 ? (
+                        <a href={materialHashPath({ doc: 'pembekalan', yearMonth: ym, weekIndex })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-200 px-3 py-1.5 text-[11px] font-bold text-amber-900">
+                          <ExternalLink className="w-3 h-3" /> Pembekalan
+                        </a>
+                      ) : canView01Reason ? (
+                        <span className="text-[10px] text-amber-900/80 px-2 py-1 rounded-full bg-white border border-amber-200" title={canView01Reason}>Pembekalan terbatas</span>
+                      ) : null}
                     </div>
+                    {!canView01 && canView01Reason && (
+                      <p className="text-[10px] text-amber-800 leading-snug">{canView01Reason}</p>
+                    )}
                   </div>
                 );
               })()}
@@ -197,16 +202,16 @@ export const IbadahMingguanPanel: React.FC = () => {
               const show01 = canView01 && !forbidden01;
               const show03 = canView03 && !forbidden03;
               const cards = [
-                ...(show01 ? [{
-                  folder: '01 Pembekalan Mentor - Co mentor',
-                  title: 'Pembekalan Mentor - Co mentor',
-                  desc: 'Hanya Mentor/Co-mentor',
-                  empty: `Belum ada file untuk ${selected.name} — upload di Panel Divisi → Didaskalia → Ibadah → 01.`,
-                  files: files01,
-                  box: 'rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2',
-                  titleCls: 'text-xs font-black text-amber-800',
-                  descCls: 'text-[11px] text-amber-700',
-                  emptyCls: 'text-[11px] text-amber-600 italic',
+                ...(show03 ? [{
+                  folder: '03 RHB 7 Hari',
+                  title: 'RHB 7 Hari',
+                  desc: 'Beyonders — Senin–Sabtu',
+                  empty: `Belum ada RHB untuk ${selected.name} — akan muncul 7 PDF.`,
+                  files: files03,
+                  box: 'rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2',
+                  titleCls: 'text-xs font-black text-emerald-800',
+                  descCls: 'text-[11px] text-emerald-700',
+                  emptyCls: 'text-[11px] text-emerald-600 italic',
                 }] : []),
                 {
                   folder: '02 Ringkasan Khotbah',
@@ -219,23 +224,31 @@ export const IbadahMingguanPanel: React.FC = () => {
                   descCls: 'text-[11px] text-sky-700',
                   emptyCls: 'text-[11px] text-sky-600 italic',
                 },
-                ...(show03 ? [{
-                  folder: '03 RHB 7 Hari',
-                  title: 'RHB 7 Hari',
-                  desc: 'Beyonders — Senin–Sabtu',
-                  empty: `Belum ada RHB untuk ${selected.name} — akan muncul 7 PDF.`,
-                  files: files03,
-                  box: 'rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2',
-                  titleCls: 'text-xs font-black text-emerald-800',
-                  descCls: 'text-[11px] text-emerald-700',
-                  emptyCls: 'text-[11px] text-emerald-600 italic',
+                ...(show01 ? [{
+                  folder: '01 Pembekalan Mentor - Co mentor',
+                  title: 'Pembekalan Mentor - Co mentor',
+                  desc: 'Mentor, staf, tim Didaskalia',
+                  empty: `Belum ada file untuk ${selected.name} — upload di Panel Divisi → Didaskalia → Ibadah → 01.`,
+                  files: files01,
+                  box: 'rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2',
+                  titleCls: 'text-xs font-black text-amber-800',
+                  descCls: 'text-[11px] text-amber-700',
+                  emptyCls: 'text-[11px] text-amber-600 italic',
                 }] : []),
               ];
               // Studio presentasi web adalah acuan utama — kartu Drive hanya tampil bila ada file.
               const withFiles = cards.filter((c) => c.files.length > 0);
               if (!withFiles.length) {
                 return (
-                  <p className="text-[11px] text-[#8C8880] italic">Materi Studio menyusul dari Didaskalia.</p>
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-[#8C8880] italic">Materi Studio menyusul dari Didaskalia.</p>
+                    {!canView01 && canView01Reason && (
+                      <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{canView01Reason}</p>
+                    )}
+                    {!canView03 && canView03Reason && (
+                      <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">{canView03Reason}</p>
+                    )}
+                  </div>
                 );
               }
               const gridCls = withFiles.length <= 1 ? 'grid gap-4 md:grid-cols-1' : withFiles.length === 2 ? 'grid gap-4 md:grid-cols-2' : 'grid gap-4 md:grid-cols-3';

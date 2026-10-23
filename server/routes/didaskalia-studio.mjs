@@ -36,6 +36,7 @@ import { decodeTextFile, extractPdfText } from '../lib/pdf-text.mjs';
 import { isDriveAuthError, driveAuthErrorMessage } from '../lib/gdrive-user-oauth.mjs';
 import { listOverrides, effectiveDate } from '../lib/service-overrides.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
+import { canViewMaterialDoc, materialVisibility } from '../../src/lib/material-visibility.mjs';
 
 /** Respons 503 yang ramah bila token Drive pemilik kedaluwarsa/dicabut. */
 function driveAuthExpired(res) {
@@ -67,19 +68,7 @@ export function publishedOnPublishDoc(doc) {
   return ['pembekalan', 'rhb', 'khutbah'].includes(String(doc || ''));
 }
 
-/**
- * RBAC materi presentasi per peran efektif (mengikuti topeng peran aktif):
- * 01 pembekalan = mentor+staf; 02 khutbah & 03 rhb = beyonders+staf.
- */
-export function canViewMaterialDoc(roles, doc) {
-  const list = (Array.isArray(roles) ? roles : []).map((r) => String(r || '').toUpperCase());
-  const isPriv = ['SUPERADMIN', 'KOMISI', 'COMMITTEE', 'BPMJ'].some((r) => list.includes(r));
-  const isMentor = list.includes('MENTOR') || list.includes('CO_MENTOR');
-  const isBeyonder = isMentor || list.includes('MENTEE');
-  const d = String(doc || '').toLowerCase();
-  if (d === 'rhb' || d === 'khutbah') return isBeyonder || isPriv;
-  return isMentor || isPriv;
-}
+export { canViewMaterialDoc, materialVisibility };
 
 /** Lima section baku RHB harian (urutan tetap) — sinkron dengan src/lib/didaskalia.ts. */
 const RHB_SECTION_DEFS = [
@@ -1317,9 +1306,22 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
     return (req.authUser?.roles || []).map((r) => r.role);
   }
 
-  /** RBAC materi: 01 mentor+staf, 02/03 beyonders+staf (mengikuti topeng peran aktif). */
-  function canViewDoc(req, doc) {
-    return canViewMaterialDoc(effectiveRoles(req), doc);
+  async function materialAccessFor(req) {
+    const roles = effectiveRoles(req);
+    const { divisionCodesFor } = await import('../lib/division-access.mjs');
+    const { hasUpcomingDidaskaliaDuty } = await import('../lib/penatalayan-access.mjs');
+    const codes = req.authUser ? await divisionCodesFor(req.authUser) : [];
+    return {
+      roles,
+      didaskaliaTeam: codes.includes('DIDASKALIA'),
+      didaskaliaOfficer: req.authUser ? await hasUpcomingDidaskaliaDuty(req.authUser) : false,
+    };
+  }
+
+  /** RBAC materi — sinkron dengan `materialVisibility` di klien. */
+  async function canViewDoc(req, doc, access) {
+    const acc = access || await materialAccessFor(req);
+    return materialVisibility(doc, acc).visible;
   }
 
   // GET /api/didaskalia/presentation/2026-09/1?doc=pembekalan|khutbah|rhb[&day=3]
@@ -1334,8 +1336,9 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const doc = String(req.query?.doc || 'pembekalan');
       if (!ymRe.test(yearMonth) || !weekIndex) return res.status(400).json({ error: 'Parameter tidak valid.' });
       if (!DOCS.includes(doc)) return res.status(400).json({ error: 'Jenis materi tidak valid.' });
+      const access = await materialAccessFor(req);
       const presKey = `pres:${yearMonth}:${weekIndex}:${doc}:${req.headers.host || ''}`;
-      if (canViewDoc(req, doc)) {
+      if (await canViewDoc(req, doc, access)) {
         const hit = getPublicCache(presKey);
         if (hit) {
           res.setHeader('Cache-Control', 'private, max-age=15');
@@ -1351,21 +1354,14 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
       const render = studio.render?.[doc] || null;
       const event = await resolveEventId(prisma, week.date);
 
-      // RBAC: role ATAU ditugaskan sebagai petugas Didaskalia (mis. Pembaca Firman) pekan ini.
-      if (!canViewDoc(req, doc)) {
+      let allowed = materialVisibility(doc, access).visible;
+      if (!allowed && doc !== 'rhb') {
         const { isAssignedDidaskaliaOfficer } = await import('../lib/penatalayan-access.mjs');
-        const assigned = doc === 'rhb'
-          ? false
-          : await isAssignedDidaskaliaOfficer(req.authUser, { eventId: event?.id || undefined, date: week.date });
-        if (!assigned) {
-          return res.status(403).json({
-            error: doc === 'rhb'
-              ? 'RHB hanya untuk Beyonders (mentor/mentee).'
-              : doc === 'khutbah'
-                ? 'Ringkasan khotbah hanya untuk Beyonders (mentor/mentee) dan staf.'
-                : 'Materi ini hanya untuk Mentor/Co-mentor, staf, atau petugas yang ditugaskan.',
-          });
-        }
+        allowed = await isAssignedDidaskaliaOfficer(req.authUser, { eventId: event?.id || undefined, date: week.date });
+      }
+      if (!allowed) {
+        const reason = materialVisibility(doc, access).reason || 'Tidak berhak mengakses materi ini.';
+        return res.status(403).json({ error: reason });
       }
       const payload = {
         doc,
@@ -1382,7 +1378,7 @@ export function registerDidaskaliaStudioRoutes(app, { wrap }) {
         version: Number(render?.version) || 1,
         snapshot: render?.snapshot || null,
       };
-      if (canViewDoc(req, doc)) setPublicCache(presKey, payload, 30_000);
+      if (await canViewDoc(req, doc, access)) setPublicCache(presKey, payload, 30_000);
       res.setHeader('Cache-Control', 'private, max-age=15');
       res.setHeader('Vary', 'Host, Cookie');
       res.json(payload);

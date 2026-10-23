@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { materialVisibility } from '../lib/material-visibility.mjs';
 
 /**
  * Hak akses materi by event mengikuti KONTEKS PERAN AKTIF (topeng),
@@ -11,6 +12,8 @@ import { useApp } from '../context/AppContext';
  */
 export function useActiveAccess() {
   const {
+    currentRole,
+    authUser,
     isSuperAdmin,
     isBpmj,
     isKomisi,
@@ -20,23 +23,39 @@ export function useActiveAccess() {
   } = useApp();
 
   const [didaskaliaOfficer, setDidaskaliaOfficer] = useState(false);
+  const [didaskaliaTeam, setDidaskaliaTeam] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/me/penatalayan-access', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled) setDidaskaliaOfficer(Boolean(d?.didaskaliaOfficer)); })
+    Promise.all([
+      fetch('/api/me/penatalayan-access', { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)),
+      fetch('/api/me/divisions', { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([pen, div]) => {
+        if (cancelled) return;
+        const up = (arr: unknown) => (Array.isArray(arr) ? arr.map(String).map((x) => x.toUpperCase()) : []);
+        const codes = [...up(div?.divisions), ...up(div?.headDivisions)];
+        setDidaskaliaOfficer(Boolean(pen?.didaskaliaOfficer));
+        setDidaskaliaTeam(codes.includes('DIDASKALIA'));
+      })
       .catch(() => { /* abaikan */ });
     return () => { cancelled = true; };
   }, []);
 
+  const roles = useMemo(() => [currentRole], [currentRole]);
+
+  const access = useMemo(
+    () => ({ roles, didaskaliaOfficer, didaskaliaTeam }),
+    [roles, didaskaliaOfficer, didaskaliaTeam],
+  );
+
   const isPriv = isSuperAdmin || isBpmj || isKomisi || isCommittee;
   const isBeyonder = isGroupMentor || isMentee;
-  // 01 Pembekalan: mentor/co + staf (topeng aktif) + petugas Didaskalia terjadwal.
-  const canView01 = isGroupMentor || isPriv || didaskaliaOfficer;
-  // 03 RHB: beyonders + staf (topeng aktif)
-  const canView03 = isBeyonder || isPriv;
+  const pembekalanVis = materialVisibility('pembekalan', access);
+  const rhbVis = materialVisibility('rhb', access);
+  const canView01 = pembekalanVis.visible;
+  const canView03 = rhbVis.visible;
   const canViewInternal = isPriv;
-  // Bonding privat: hanya beyonder grup + SUPERADMIN/KOMISI/BOD COMMITTEE (BPMJ tidak).
   const canViewBonding = isBeyonder || isSuperAdmin || isKomisi || isCommittee;
 
   return {
@@ -44,9 +63,13 @@ export function useActiveAccess() {
     isMentor: isGroupMentor,
     isBeyonder,
     canView01,
+    canView01Reason: pembekalanVis.visible ? undefined : pembekalanVis.reason,
     canView03,
+    canView03Reason: rhbVis.visible ? undefined : rhbVis.reason,
     canViewInternal,
     canViewBonding,
     didaskaliaOfficer,
+    didaskaliaTeam,
+    materialAccess: access,
   };
 }

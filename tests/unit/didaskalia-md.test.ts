@@ -55,7 +55,7 @@ describe('parseServiceMd', () => {
     const r = parseServiceMd('# Judul\n\nIsi generik tanpa struktur.');
     expect(r.ok).toBe(false);
     expect(r.missing).toContain('Pengantar');
-    expect(r.missing).toContain('Teks Utama (Serving Day / Sermon)');
+    expect(r.missing).toContain('Teks Utama (MD Mentoring Day / Sermon)');
   });
 });
 

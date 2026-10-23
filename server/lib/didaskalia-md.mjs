@@ -142,7 +142,7 @@ export function parseServiceMd(raw) {
   if (!outline.bedahTeologis) missing.push('Bedah Teologis');
   if (!outline.jembatan) missing.push('Jembatan Menuju Tema Mingguan');
   if (!outline.kesimpulan) missing.push('Kesimpulan');
-  if (!info.teksUtama) missing.push('Teks Utama (Serving Day / Sermon)');
+  if (!info.teksUtama) missing.push('Teks Utama (MD Mentoring Day / Sermon)');
   if (!info.kitabFokus) missing.push('Kitab Bagian Fokus');
   return { ok: missing.length === 0, missing, info, outline };
 }
@@ -389,7 +389,7 @@ export function toStandardServiceMd({ info = {}, outline = {} } = {}) {
   return [
     '## A. Informasi Sesi',
     `* **Tema Minggu Ini:** ${info.tema || ''}`,
-    `* **Teks Utama (Serving Day / Sermon):** ${info.teksUtama || ''}`,
+    `* **Teks Utama (MD Mentoring Day / Sermon):** ${info.teksUtama || ''}`,
     `* **Kitab Bagian Fokus (Tema Mingguan / RHB 7 Path):** ${info.kitabFokus || info.teksJangkar || ''}`,
     '',
     '### 1. Pengantar',
