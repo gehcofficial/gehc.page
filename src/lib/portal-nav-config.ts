@@ -243,7 +243,7 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
   MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'penatalayan-usulan', 'absensi-grup', 'pastoral-care', 'account'],
   CO_MENTOR: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'penatalayan-usulan', 'absensi-grup', 'pastoral-care', 'account'],
   MENTEE: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'groups-monitoring', 'kesaksian', 'pastoral-care', 'account'],
-  BPMJ: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'church-info', 'account'],
+  BPMJ: ['event-info', 'kegiatan', 'internal-warta', 'dashboard', 'church-dashboard', 'unit-pengurus', 'unit-members', 'kolom', 'jethro-placement', 'beyonders-leaders', 'jethro', 'groups-monitoring', 'events', 'wa-channels', 'church-info', 'account'],
 };
 
 /**

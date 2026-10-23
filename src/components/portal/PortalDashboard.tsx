@@ -19,8 +19,11 @@ import { MyServiceDutyCard } from './MyServiceDutyCard';
 import { displayAvatar } from '../../lib/avatar';
 import { fmt } from '../../lib/portal-i18n';
 import { portalProfile, resolvePortalId } from '../../lib/portal-profiles';
+import { usePortalProfile } from '../../hooks/usePortalProfile';
+import { UnitPortalHome } from './UnitPortalHome';
 
 export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
+  const { id: portalId } = usePortalProfile();
   const publicHostLabel = useMemo(() => {
     if (typeof window === 'undefined') return 'portal unit';
     return portalProfile(resolvePortalId(window.location.hostname, window.location.search)).host;
@@ -117,6 +120,10 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
 
   const showMonitoringCta = !isAlumni;
   const showContentCta = isSuperAdmin || isCommittee;
+
+  if (portalId !== 'youth') {
+    return <UnitPortalHome onNavigate={onNavigate} />;
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
