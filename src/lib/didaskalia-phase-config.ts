@@ -46,6 +46,30 @@ export function creativeLabPhaseSteps(): DidaskaliaPhaseStep[] {
   ];
 }
 
+export function debatPhaseSteps(): DidaskaliaPhaseStep[] {
+  return [
+    { key: 'D0', label: 'Mulai Ronde 1 · Reveal 1′', enabledWhen: (s) => includes(s, 'DRAFT', 'LIKERT_OPEN') },
+    { key: 'D1', label: 'Ronde Berikutnya', enabledWhen: (s) => s === 'RUNNING' },
+    { key: 'D2', label: 'Trap Reveal · 20′', enabledWhen: (s) => s === 'RUNNING' },
+  ];
+}
+
+export function postToPostPhaseSteps(): DidaskaliaPhaseStep[] {
+  return [
+    { key: 'LIKERT', label: 'Buka Akses Likert', enabledWhen: (s) => includes(s, 'DRAFT', 'LIKERT_OPEN') },
+    { key: 'START', label: 'Mulai Kunjungan Pos', enabledWhen: (s) => s === 'LIKERT_OPEN' || s === 'RUNNING' },
+    { key: 'WRAPUP', label: 'Lesson Learned', enabledWhen: (s) => s === 'RUNNING' },
+  ];
+}
+
+export function missionSequencePhaseSteps(): DidaskaliaPhaseStep[] {
+  return [
+    { key: 'START', label: 'Mulai Sesi / Snack & Merge', enabledWhen: (s) => includes(s, 'DRAFT', 'LIKERT_OPEN') },
+    { key: 'MISSION', label: 'Mission Room', enabledWhen: (s) => s === 'RUNNING' },
+    { key: 'WRAPUP', label: 'Laporan & Penutup', enabledWhen: (s) => s === 'RUNNING' || s === 'WRAPUP' },
+  ];
+}
+
 export function phaseStepsForPattern(
   patternCode: string | null | undefined,
   prefMin: (key: string) => number,
@@ -58,6 +82,12 @@ export function phaseStepsForPattern(
       return filmPhaseSteps();
     case 'CREATIVE_LAB':
       return creativeLabPhaseSteps();
+    case 'DEBAT':
+      return debatPhaseSteps();
+    case 'POST_TO_POST':
+      return postToPostPhaseSteps();
+    case 'THREE_SEQUENCES':
+      return missionSequencePhaseSteps();
     default:
       return [];
   }
@@ -69,5 +99,9 @@ export function dayFlowHintForPattern(patternCode: string | null | undefined): s
   if (code === 'BEDAH_FILM') {
     return 'Firman → Briefing → Likert AWAL → Mulai Film → Likert AKHIR + Lesson Learned → Undi & Kesaksian.';
   }
+  if (code === 'DEBAT') return 'Praise & Worship (firman) → Ronde debat → Trap Reveal konklusi.';
+  if (code === 'POST_TO_POST') return 'Likert → Briefing → Kunjungan Pos → Lesson Learned.';
+  if (code === 'THREE_SEQUENCES') return 'Firman di P&W → Snack & Merge → Mission Room → Laporan → Penutup.';
+  if (code === 'MONOLOG') return 'Bedah Lagu → Deep Sharing → Kesaksian → Konklusi.';
   return null;
 }

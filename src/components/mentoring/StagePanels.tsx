@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus,
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
 import { BEYONDERS_GROUPS, LAB_PHOTO_CAP, LAB_PRESENT_SLIDES, LAB_STATION_CAP, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
 import { labPresentationOrder } from '../../lib/creative-lab-draft';
+import { useLabActivityContextOptional } from '../../context/LabActivityContext';
+import { parseLabActivity } from '../../hooks/useLabActivity';
 
 const CARD = 'bg-white rounded-2xl border border-[#D9D7D0]/60 p-4';
 const INPUT = 'w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand';
@@ -682,10 +684,16 @@ function fmtLabClock(ms: number): string {
  * Pot/Tas), timer A1/A2/presentasi (display-only), navigator kartu jar untuk
  * layar, dan penanda kelompok yang sedang presentasi. Tanpa migrasi skema.
  */
-export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) => {
+export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boolean }> = ({
+  sessionId,
+  hideControlBar = false,
+}) => {
+  const labCtx = useLabActivityContextOptional();
   const { msg, setMsg, busy, setBusy } = useStageMsg();
   const [teams, setTeams] = useState<LabTeamRow[]>([labEmptyTeam()]);
-  const [activity, setActivity] = useState<LabActivity>(labDefaultActivity());
+  const [localActivity, setLocalActivity] = useState<LabActivity>(labDefaultActivity());
+  const activity = (labCtx?.activity as LabActivity) || localActivity;
+  const setActivity = labCtx ? labCtx.setActivity as (a: LabActivity) => void : setLocalActivity;
   const [cards, setCards] = useState<Array<{ title: string; direction: string }>>(
     LAB_JAR_TITLES.map((title) => ({ title, direction: '' })),
   );
@@ -706,30 +714,11 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
       setSavedTeamNames((list.length ? list : [labEmptyTeam()]).map((t: LabTeamRow) => t.name.trim()).join('|'));
-      const a = cfg.activity && typeof cfg.activity === 'object' ? cfg.activity : {};
-      const dur = a.durations && typeof a.durations === 'object' ? a.durations : {};
-      setActivity({
-        phase: ['DRAW', 'IDLE', 'A1', 'A2', 'PRESENT', 'DONE'].includes(String(a.phase || '').toUpperCase())
-          ? String(a.phase).toUpperCase() as LabActivity['phase']
-          : 'IDLE',
-        startedAt: a.startedAt || null,
-        durationSec: Number(a.durationSec) || Number(dur.A1) || 900,
-        showOnScreen: a.showOnScreen !== false,
-        cardIndex: Math.min(5, Math.max(0, Number(a.cardIndex) || 0)),
-        presentIndex: Math.min(LAB_INDEX_MAX, Math.max(0, Number(a.presentIndex) || 0)),
-        presentSlide: Math.min(2, Math.max(0, Math.floor(Number(a.presentSlide) || 0))),
-        presentStartedAt: a.presentStartedAt || null,
-        presentSeconds: Number(a.presentSeconds) || Number(dur.PRESENT) || 150,
-        presentOrder: Array.isArray(a.presentOrder) ? a.presentOrder.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
-        presentSkipped: Array.isArray(a.presentSkipped) ? a.presentSkipped.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
-        presentPostponed: Array.isArray(a.presentPostponed) ? a.presentPostponed.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= LAB_INDEX_MAX) : [],
-        presentDrawnAt: a.presentDrawnAt || null,
-        durations: {
-          A1: Number(dur.A1) || 900,
-          A2: Number(dur.A2) || 1500,
-          PRESENT: Number(dur.PRESENT) || Number(a.presentSeconds) || 150,
-        },
-      });
+      if (!labCtx) {
+        setLocalActivity(parseLabActivity(cfg) as LabActivity);
+      } else {
+        await labCtx.reload();
+      }
       setLab(cfg.lab && Array.isArray(cfg.lab.teams) ? cfg.lab as LabSummary : null);
       const a2 = cfg.draft?.['activity-2'] && typeof cfg.draft['activity-2'] === 'object' ? cfg.draft['activity-2'] : {};
       setStations({
@@ -748,7 +737,7 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
     } finally {
       setLoading(false);
     }
-  }, [sessionId, setMsg]);
+  }, [sessionId, setMsg, labCtx]);
 
   const loadParticipants = useCallback(async () => {
     try {
@@ -920,8 +909,13 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
   };
 
   const pushActivity = async (patch: Partial<LabActivity>, note?: string) => {
+    if (labCtx) {
+      await labCtx.pushActivity(patch as Partial<typeof labCtx.activity>, note);
+      if (note) setMsg(note);
+      return;
+    }
     const next: LabActivity = { ...activity, ...patch, durations: { ...activity.durations, ...(patch.durations || {}) } };
-    setActivity(next);
+    setLocalActivity(next);
     setBusy(true);
     setMsg(null);
     try {
@@ -1110,15 +1104,17 @@ export const ActivityPanel: React.FC<{ sessionId: string }> = ({ sessionId }) =>
               </p>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
-            <div className="flex flex-wrap gap-1.5 justify-end">
-              <button type="button" disabled={busy} onClick={startDraw} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Undian</button>
-              <button type="button" disabled={busy} onClick={startBriefing} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Briefing</button>
-              <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 1</button>
-              <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 2</button>
-              <button type="button" disabled={busy} onClick={startPresent} className="px-3 py-1.5 rounded-lg bg-brand text-[11px] font-bold disabled:opacity-60">Presentasi</button>
-              <button type="button" disabled={busy} onClick={stopTimer} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Stop</button>
-              <button type="button" disabled={busy} onClick={resetStage} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Reset</button>
-            </div>
+            {!hideControlBar && (
+              <div className="flex flex-wrap gap-1.5 justify-end">
+                <button type="button" disabled={busy} onClick={startDraw} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Undian</button>
+                <button type="button" disabled={busy} onClick={startBriefing} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Briefing</button>
+                <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 1</button>
+                <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 2</button>
+                <button type="button" disabled={busy} onClick={startPresent} className="px-3 py-1.5 rounded-lg bg-brand text-[11px] font-bold disabled:opacity-60">Presentasi</button>
+                <button type="button" disabled={busy} onClick={stopTimer} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Stop timer</button>
+                <button type="button" disabled={busy} onClick={resetStage} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Reset panggung</button>
+              </div>
+            )}
           </div>
 
           {activity.phase === 'PRESENT' && (

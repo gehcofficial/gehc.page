@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   CREATIVE_LAB_DAY_FLOW,
+  debatPhaseSteps,
   filmPhaseSteps,
+  missionSequencePhaseSteps,
   monologPhaseSteps,
   phaseStepsForPattern,
+  postToPostPhaseSteps,
 } from '../../src/lib/didaskalia-phase-config';
 
 describe('didaskalia-phase-config', () => {
@@ -27,5 +30,12 @@ describe('didaskalia-phase-config', () => {
   it('resolves pattern code aliases', () => {
     expect(phaseStepsForPattern('BEDAH_FILM', () => 1).length).toBeGreaterThan(4);
     expect(phaseStepsForPattern('MONOLOG', () => 1).length).toBe(4);
+  });
+
+  it('debat, post-to-post, and mission sequence step keys', () => {
+    expect(debatPhaseSteps().map((s) => s.key)).toEqual(['D0', 'D1', 'D2']);
+    expect(postToPostPhaseSteps().map((s) => s.key)).toEqual(['LIKERT', 'START', 'WRAPUP']);
+    expect(missionSequencePhaseSteps().map((s) => s.key)).toEqual(['START', 'MISSION', 'WRAPUP']);
+    expect(debatPhaseSteps()[0].enabledWhen('LIKERT_OPEN')).toBe(true);
   });
 });

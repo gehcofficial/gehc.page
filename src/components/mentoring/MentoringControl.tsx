@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LabActivityProvider } from '../../context/LabActivityContext';
 import {
   Copy,
   Download,
@@ -21,8 +22,9 @@ import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 import { lastPortalPlace } from '../../lib/portal-place';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { sessionHasDraftContent } from '../../lib/worship-session-draft';
-import { CREATIVE_LAB_DAY_FLOW, dayFlowHintForPattern } from '../../lib/didaskalia-phase-config';
 import { PatternRundownList } from './PatternRundownList';
+import { DidaskaliaSessionControls } from './DidaskaliaSessionControls';
+import { MentoringLabControls } from './MentoringLabControls';
 import { TestimonyPanel } from './TestimonyPanel';
 import { ActivityPanel, DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
 
@@ -296,6 +298,12 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
   const doAction = async (action: string, extra?: Record<string, unknown>) => {
     if (!detail) return;
+    if (action === 'close') {
+      const ok = window.confirm(
+        'Tutup Sesi menandai status CLOSED — peserta tidak bisa mengirim input baru. Timer berhenti. Lanjut?',
+      );
+      if (!ok) return;
+    }
     if (action === 'reset') {
       const ok = window.confirm(
         'Reset ke Draft menghapus jawaban audiens (Likert, vote, catatan, kesaksian, screening, fase, trigger, chip) plus karya Creative Lab, status aktivitas, dan tanda selesai tim. Roster tim tetap. Soal + Lesson Learned master tetap. Lanjut?',
@@ -822,6 +830,122 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
     [isPostToPost],
   );
 
+  const prefMin = useCallback((name: string) => Math.round(prefSec(name) / 60), [phasePrefsDraft]);
+
+  const runDidaskaliaStep = useCallback(
+    async (key: string) => {
+      if (!detail) return;
+      if (patternCode === 'MONOLOG') {
+        if (key === 'F1') await startWithPrefs('start', 'F1');
+        else if (key === 'F2') await monologPhase('F2');
+        else if (key === 'F3') await startWithPrefs('wrapup', 'F3');
+        else if (key === 'CLOSING') await monologPhase('CLOSING');
+        return;
+      }
+      if (patternCode === 'BEDAH_FILM') {
+        if (key === 'FIRMAN') {
+          await saveStage(detail.session.id, {
+            phase: { name: 'FIRMAN', startedAt: new Date().toISOString(), durationSec: 180, showOnScreen: true },
+          });
+          setMsg({ kind: 'ok', text: 'Layar judul firman — timer 3 menit.' });
+          await loadDetail();
+        } else if (key === 'BRIEFING') {
+          await saveStage(detail.session.id, {
+            phase: { name: 'BRIEFING', startedAt: new Date().toISOString(), durationSec: 120, showOnScreen: true },
+          });
+          setMsg({ kind: 'ok', text: 'Briefing film — timer 2 menit.' });
+          await loadDetail();
+        } else if (key === 'M0') {
+          await doAction('open-likert');
+          await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).');
+          await saveStage(detail.session.id, {
+            phase: { name: 'M0', startedAt: new Date().toISOString(), durationSec: 300, showOnScreen: true },
+          });
+          await loadDetail();
+        } else if (key === 'M1') {
+          await doAction('start');
+          await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci.');
+          await saveStage(detail.session.id, { phase: null });
+          await loadDetail();
+        } else if (key === 'M3') {
+          await filmSetRounds('closed', 'open', 'Likert AKHIR + Lesson Learned dibuka.');
+        } else if (key === 'M4') {
+          await doAction('wrapup');
+          setMsg({ kind: 'ok', text: 'Wrapup: undi via panel Undian.' });
+        }
+        return;
+      }
+      if (patternCode === 'DEBAT') {
+        const atLast = debatRoundCount > 0 && debatCurrent >= debatRoundCount - 1;
+        if (key === 'D0') {
+          await doAction('start');
+          await debatStage({ current: 0, phase: 'brief', step: 0, stepStartedAt: new Date().toISOString() }, 'Ronde 1 dimulai — The Reveal 1′.');
+        } else if (key === 'D1' && debatRoundCount > 0 && !atLast) {
+          await debatStage(
+            { current: debatCurrent + 1, phase: 'brief', step: 0, stepStartedAt: new Date().toISOString() },
+            `Ronde ${debatCurrent + 2} — The Reveal.`,
+          );
+        } else if (key === 'D2') {
+          await doAction('wrapup');
+          await debatStage({ phase: 'selesai' }, 'Trap Reveal dibuka — konklusi 20′.');
+        }
+        return;
+      }
+      if (patternCode === 'POST_TO_POST') {
+        if (key === 'LIKERT') await doAction('open-likert');
+        else if (key === 'START') await doAction('start');
+        else if (key === 'WRAPUP') await doAction('wrapup');
+        return;
+      }
+      if (patternCode === 'THREE_SEQUENCES') {
+        if (key === 'START') await doAction('start');
+        else if (key === 'MISSION') {
+          setMsg({ kind: 'ok', text: 'Mission Room — gunakan panel tim di bawah untuk fase misi.' });
+        } else if (key === 'WRAPUP') await doAction('wrapup');
+      }
+    },
+    [
+      detail,
+      patternCode,
+      debatRoundCount,
+      debatCurrent,
+      doAction,
+      filmSetRounds,
+      loadDetail,
+      monologPhase,
+      debatStage,
+      startWithPrefs,
+    ],
+  );
+
+  const handleDidaskaliaExtend = useCallback(
+    (seconds: number) => {
+      if (live?.phase?.startedAt && (isMonolog || isFilm || patternCode === 'DEBAT')) {
+        void extendPhase(seconds);
+        return;
+      }
+      void doAction('extend', { seconds });
+    },
+    [live?.phase?.startedAt, isMonolog, isFilm, patternCode, extendPhase, doAction],
+  );
+
+  const extendCanRun = Boolean(
+    live?.phase?.startedAt ||
+      ['RUNNING', 'WRAPUP', 'LIKERT_OPEN'].includes(String(detail?.session?.status || '')),
+  );
+
+  const debatStatusExtra =
+    isDebat ? (
+      <span className="ml-2">
+        Ronde {debatRoundCount ? debatCurrent + 1 : 0}/{debatRoundCount || 0} · langkah {Number(debatRoundsState?.step ?? 0) + 1}/11
+      </span>
+    ) : isFilm ? (
+      <span className="ml-2">
+        Gate AWAL {String(detail?.session.config?.likertRounds?.pre || 'open').toUpperCase()} · AKHIR{' '}
+        {String(detail?.session.config?.likertRounds?.post || 'closed').toUpperCase()}
+      </span>
+    ) : null;
+
   const backHref = standalone ? lastPortalPlace('#/portal') : '';
   return (
     <div className={standalone ? 'min-h-screen bg-[#FAF9F5] text-[#1B1B1B]' : ''}>
@@ -935,281 +1059,157 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           <PatternRundownList patternName={detail.session.pattern?.name} phases={detail.session.pattern?.phases} />
           <fieldset disabled={!hasDraft || !canWrite} className={`min-w-0 border-0 p-0 m-0 space-y-4 ${(!hasDraft || !canWrite) ? 'opacity-70' : ''}`}>
           <div className={CARD}>
-            <div className="flex flex-wrap items-center gap-2">
-              {isMonolog ? (
-                <>
-                  {(
-                    [
-                      { key: 'F1', label: `Sesi 1 · Bedah Lagu · ${Math.round(prefSec('F1') / 60)}’`, run: () => void startWithPrefs('start', 'F1'), on: detail.session.status === 'DRAFT' },
-                      { key: 'F2', label: `Sesi 2 · Deep Sharing · ${Math.round(prefSec('F2') / 60)}’`, run: () => void monologPhase('F2'), on: detail.session.status === 'RUNNING' },
-                      { key: 'F3', label: `Sesi 3 · Kesaksian · ${Math.round(prefSec('F3') / 60)}’`, run: () => void startWithPrefs('wrapup', 'F3'), on: detail.session.status === 'RUNNING' },
-                      { key: 'CLOSING', label: `Konklusi · ${Math.round(prefSec('CLOSING') / 60)}’`, run: () => void monologPhase('CLOSING'), on: detail.session.status === 'WRAPUP' },
-                    ] as const
-                  ).map((b) => {
-                    const active = live?.phase?.name === b.key;
-                    return (
-                      <button
-                        key={b.key}
-                        type="button"
-                        disabled={busy || !b.on}
-                        onClick={b.run}
-                        title={active ? 'Fase sedang berjalan' : b.key === 'F1' ? 'Mulai sesi + buka Q1-Q3' : b.key === 'F2' ? 'Buka Q4-Q5 + timer 25 menit' : b.key === 'F3' ? 'Wrapup + undian + chip (10 menit)' : 'Timer transisi 5 menit'}
-                        className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 ${active ? 'ring-2 ring-offset-2 ring-brand bg-[#1B1B1B]' : 'bg-emerald-600'}`}
-                      >
-                        {b.label}
-                      </button>
-                    );
-                  })}
-                  {renderExtendChips((s) => void extendPhase(s), Boolean(live?.phase?.startedAt))}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void doAction('close')}
-                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-[#1B1B1B]"
-                  >
-                    Tutup Sesi
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void doAction('reset')}
-                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider disabled:opacity-60 bg-white !text-[#8C8880] border border-[#D9D7D0]"
-                  >
-                    Reset ke Draft
-                  </button>
-                </>
-              ) : isFilm ? (
-                <>
-                  {(
-                    [
-                      { key: 'FIRMAN', label: 'Firman · layar judul', run: async () => { await saveStage(detail.session.id, { phase: { name: 'FIRMAN', startedAt: new Date().toISOString(), durationSec: 180, showOnScreen: true } }); setMsg({ kind: 'ok', text: 'Layar judul firman — timer 3 menit.' }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Tampilkan layar judul firman (Creative Lab style)' },
-                      { key: 'BRIEFING', label: 'Briefing · 2′', run: async () => { await saveStage(detail.session.id, { phase: { name: 'BRIEFING', startedAt: new Date().toISOString(), durationSec: 120, showOnScreen: true } }); setMsg({ kind: 'ok', text: 'Briefing film — timer 2 menit.' }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Briefing sinopsis & aturan catatan Q1–Q3' },
-                      { key: 'M0', label: 'Buka Likert AWAL · 5’', run: async () => { await doAction('open-likert'); await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).'); await saveStage(detail.session.id, { phase: { name: 'M0', startedAt: new Date().toISOString(), durationSec: 300, showOnScreen: true } }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Buka akses + gate ronde AWAL + timer 5 menit (satu-satunya timer film)' },
-                      { key: 'M1', label: 'Mulai Film (ikuti film)', run: async () => { await doAction('start'); await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci. Layar mode tenang.'); await saveStage(detail.session.id, { phase: null }); await loadDetail(); }, on: detail.session.status === 'LIKERT_OPEN', title: 'Start sesi + kunci AWAL + matikan timer (mengikuti durasi film)' },
-                      { key: 'M3', label: 'Buka Likert AKHIR + Lesson Learned · 5’', run: async () => { await filmSetRounds('closed', 'open', 'Likert AKHIR + Lesson Learned dibuka — delta tampil di layar.'); }, on: detail.session.status === 'RUNNING', title: 'Buka ronde AKHIR + Lesson Learned serentak + tampil delta pre→post' },
-                      { key: 'M4', label: 'Undi + Kesaksian · 10’', run: async () => { await doAction('wrapup'); setMsg({ kind: 'ok', text: 'Wrapup: undi 2 via panel Undian — nama + grup + hasil Lesson Learned tampil di layar.' }); }, on: detail.session.status === 'RUNNING', title: 'Wrapup + undi 1 Mentee + 1 Mentor via panel Undian' },
-                    ] as const
-                  ).map((b) => (
-                    <button
-                      key={b.key}
-                      type="button"
-                      disabled={busy || !b.on}
-                      onClick={() => void b.run()}
-                      title={b.title}
-                      className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-emerald-600"
-                    >
-                      {b.label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void doAction('close')}
-                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-[#1B1B1B]"
-                  >
-                    Tutup Sesi
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void doAction('reset')}
-                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider disabled:opacity-60 bg-white !text-[#8C8880] border border-[#D9D7D0]"
-                  >
-                    Reset ke Draft
-                  </button>
-                  <span className="text-[11px] font-bold text-[#8C8880]">
-                    Gate: AWAL {String(detail.session.config?.likertRounds?.pre || 'open').toUpperCase()} · AKHIR {String(detail.session.config?.likertRounds?.post || 'closed').toUpperCase()}
-                  </span>
-                </>
-              ) : isDebat ? (
-                <>
-                  {(() => {
-                    const atLast = debatRoundCount > 0 && debatCurrent >= debatRoundCount - 1;
-                    const buttons = [
-                      {
-                        key: 'D0',
-                        label: `Mulai Ronde 1 · Reveal 1′`,
-                        on: ['DRAFT', 'OPEN', 'LIKERT_OPEN'].includes(String(detail.session.status)),
-                        title: 'Buka sesi + ronde 1 langkah The Reveal (1 menit)',
-                        run: async () => {
-                          await doAction('start');
-                          await debatStage({ current: 0, phase: 'brief', step: 0, stepStartedAt: new Date().toISOString() }, 'Ronde 1 dimulai — The Reveal 1′.');
-                        },
-                      },
-                      {
-                        key: 'D1',
-                        label: `Ronde Berikutnya (${Math.min(debatCurrent + 2, Math.max(1, debatRoundCount || debatCurrent + 2))}/${debatRoundCount || '?'})`,
-                        on: detail.session.status === 'RUNNING' && debatRoundCount > 0 && !atLast,
-                        title: 'Lanjut ke ronde berikutnya (langkah balik ke The Reveal)',
-                        run: () => debatStage({ current: debatCurrent + 1, phase: 'brief', step: 0, stepStartedAt: new Date().toISOString() }, `Ronde ${debatCurrent + 2} — The Reveal.`),
-                      },
-                      {
-                        key: 'D2',
-                        label: 'Trap Reveal · 20′',
-                        on: detail.session.status === 'RUNNING',
-                        title: 'Konklusi: bongkar dikotomi palsu (buka wrapup + naskah Trap Reveal)',
-                        run: async () => {
-                          await doAction('wrapup');
-                          await debatStage({ phase: 'selesai' }, 'Trap Reveal dibuka — konklusi 20′.');
-                        },
-                      },
-                    ];
-                    return buttons.map((b) => (
-                      <button
-                        key={b.key}
-                        type="button"
-                        disabled={busy || !b.on}
-                        onClick={() => void b.run()}
-                        title={b.title}
-                        className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-emerald-600"
-                      >
-                        {b.label}
-                      </button>
-                    ));
-                  })()}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void doAction('close')}
-                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 bg-[#1B1B1B]"
-                  >
-                    Tutup Sesi
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void doAction('reset')}
-                    className="px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider disabled:opacity-60 bg-white !text-[#8C8880] border border-[#D9D7D0]"
-                  >
-                    Reset ke Draft
-                  </button>
-                  <span className="text-[11px] font-bold text-[#8C8880]">
-                    Ronde {debatRoundCount ? debatCurrent + 1 : 0}/{debatRoundCount || 0} · langkah {Number(debatRoundsState?.step ?? 0) + 1}/11
-                  </span>
-                </>
-              ) : (
-              <>
-              {visibleActions.filter((a) => a.action !== 'extend').map((a) => {
-                const label = isMonolog && a.action === 'start'
-                  ? 'Mulai Bedah Lagu & Monolog'
-                  : isMonolog && a.action === 'wrapup'
-                    ? 'Buka Lesson Learned'
-                    : isCreativeLab && a.action === 'start'
-                      ? 'Mulai Sesi'
-                      : isCreativeLab && a.action === 'wrapup'
-                        ? 'Buka Satu Kata'
-                        : a.label;
-                return (
-                <button
-                  key={a.action}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void doAction(a.action)}
-                  className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 ${a.tone}`}
-                >
-                  {label}
-                </button>
-                );
-              })}
-              {visibleActions.some((a) => a.action === 'extend') &&
-                renderExtendChips((s) => void doAction('extend', { seconds: s }), true)}
-              </>
-              )}
-              <span className="ml-auto text-[11px] font-bold text-[#8C8880]">
-                {isMonolog && live?.phase?.startedAt
-                  ? `Fase ${live.phase.name} · sisa ±${Math.max(0, Math.round((new Date(live.phase.startedAt).getTime() + Number(live.phase.durationSec) * 1000 - Date.now()) / 60000))} mnt · `
-                  : ''}
-                Status: {STATUS_LABELS[detail.session.status]}
-              </span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <label className="space-y-1">
-                <span className="text-[11px] text-[#8C8880]">Timer sesi (detik)</span>
-                <input
-                  className={INPUT}
-                  type="number"
-                  min={60}
-                  value={configDraft.timerSeconds}
-                  onChange={(e) => setConfigDraft((c) => ({ ...c, timerSeconds: Number(e.target.value) }))}
+            {isCreativeLab ? (
+              <LabActivityProvider sessionId={detail.session.id}>
+                <MentoringLabControls
+                  detail={detail}
+                  live={live}
+                  busy={busy}
+                  prefMin={prefMin}
+                  onWrapup={() => void doAction('wrapup')}
+                  onClose={() => void doAction('close')}
+                  onResetDraft={() => void doAction('reset')}
                 />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[11px] text-[#8C8880]">Target peserta (opsional)</span>
-                <input
-                  className={INPUT}
-                  type="number"
-                  min={1}
-                  value={configDraft.expectedCount}
-                  placeholder="otomatis dari tenant"
-                  onChange={(e) => setConfigDraft((c) => ({ ...c, expectedCount: e.target.value }))}
-                />
-              </label>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void saveConfig()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60"
-                >
-                  <Save className="w-3.5 h-3.5" /> Simpan konfigurasi
-                </button>
-              </div>
-            </div>
-
-            {isCreativeLab && (
-              <div className="mt-4 space-y-2">
-                <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900">
-                  <b>Alur hari-H:</b> {dayFlowHintForPattern(patternCode) || CREATIVE_LAB_DAY_FLOW}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
-                  <span>
-                    Timer sesi pola ini <b className="text-[#1B1B1B]">140 menit = 8400 detik</b> (PRA 20′ terpisah; jemaat sampai Acara Bebas & Pulang).
-                  </span>
-                  {Number(configDraft.timerSeconds) !== 8400 && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-[#8C8880]">Timer sesi (detik)</span>
+                    <input
+                      className={INPUT}
+                      type="number"
+                      min={60}
+                      value={configDraft.timerSeconds}
+                      onChange={(e) => setConfigDraft((c) => ({ ...c, timerSeconds: Number(e.target.value) }))}
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-[#8C8880]">Target peserta (opsional)</span>
+                    <input
+                      className={INPUT}
+                      type="number"
+                      min={1}
+                      value={configDraft.expectedCount}
+                      placeholder="otomatis dari tenant"
+                      onChange={(e) => setConfigDraft((c) => ({ ...c, expectedCount: e.target.value }))}
+                    />
+                  </label>
+                  <div className="flex items-end">
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 8400 }))}
-                      className="px-2.5 py-1 rounded-full border border-[#D9D7D0] font-bold text-[#1B1B1B] hover:border-brand disabled:opacity-60"
+                      onClick={() => void saveConfig()}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60"
                     >
-                      Pakai 8400 dtk
+                      <Save className="w-3.5 h-3.5" /> Simpan konfigurasi
                     </button>
-                  )}
+                  </div>
                 </div>
-                <div className="rounded-xl border border-[#EFEDE8] bg-white p-3 space-y-2">
-                  <p className="text-[11px] font-black text-[#1B1B1B]">Pengumuman layar · pencatat di Sesi 2, pengundian di briefing</p>
-                  <label className="block text-[11px] text-[#8C8880] space-y-1">
-                    <span className="font-bold">Umumkan pencatat</span>
-                    <textarea
-                      value={briefingDraft.scribe}
-                      onChange={(e) => setBriefingDraft((b) => ({ ...b, scribe: e.target.value }))}
-                      rows={2}
-                      placeholder="Umumkan perwakilan pencatat tiap kelompok."
-                      className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs text-[#1B1B1B]"
+                <div className="mt-4 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
+                    <span>
+                      Timer sesi pola ini <b className="text-[#1B1B1B]">140 menit = 8400 detik</b> (PRA 20′ terpisah; jemaat sampai Acara Bebas & Pulang).
+                    </span>
+                    {Number(configDraft.timerSeconds) !== 8400 && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setConfigDraft((c) => ({ ...c, timerSeconds: 8400 }))}
+                        className="px-2.5 py-1 rounded-full border border-[#D9D7D0] font-bold text-[#1B1B1B] hover:border-brand disabled:opacity-60"
+                      >
+                        Pakai 8400 dtk
+                      </button>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-[#EFEDE8] bg-white p-3 space-y-2">
+                    <p className="text-[11px] font-black text-[#1B1B1B]">Pengumuman layar · pencatat di Sesi 2, pengundian di briefing</p>
+                    <label className="block text-[11px] text-[#8C8880] space-y-1">
+                      <span className="font-bold">Umumkan pencatat</span>
+                      <textarea
+                        value={briefingDraft.scribe}
+                        onChange={(e) => setBriefingDraft((b) => ({ ...b, scribe: e.target.value }))}
+                        rows={2}
+                        placeholder="Umumkan perwakilan pencatat tiap kelompok."
+                        className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs text-[#1B1B1B]"
+                      />
+                    </label>
+                    <label className="block text-[11px] text-[#8C8880] space-y-1">
+                      <span className="font-bold">Umumkan pengundian</span>
+                      <textarea
+                        value={briefingDraft.draw}
+                        onChange={(e) => setBriefingDraft((b) => ({ ...b, draw: e.target.value }))}
+                        rows={2}
+                        placeholder="Umumkan pengundian urutan presentasi kelompok."
+                        className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs text-[#1B1B1B]"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void saveBriefing()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-60"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Simpan pengumuman layar
+                    </button>
+                  </div>
+                  <ActivityPanel sessionId={detail.session.id} hideControlBar />
+                </div>
+              </LabActivityProvider>
+            ) : (
+              <>
+                <DidaskaliaSessionControls
+                  patternCode={patternCode}
+                  status={detail.session.status}
+                  busy={busy}
+                  activePhaseKey={live?.phase?.name || null}
+                  prefMin={prefMin}
+                  onRunStep={(k) => void runDidaskaliaStep(k)}
+                  onClose={() => void doAction('close')}
+                  onResetDraft={() => void doAction('reset')}
+                  onExtend={handleDidaskaliaExtend}
+                  extendCanRun={extendCanRun}
+                  showDayFlow
+                  statusExtra={
+                    <>
+                      {isMonolog && live?.phase?.startedAt
+                        ? `Fase ${live.phase.name} · sisa ±${Math.max(0, Math.round((new Date(live.phase.startedAt).getTime() + Number(live.phase.durationSec) * 1000 - Date.now()) / 60000))} mnt · `
+                        : null}
+                      {debatStatusExtra}
+                    </>
+                  }
+                />
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-[#8C8880]">Timer sesi (detik)</span>
+                    <input
+                      className={INPUT}
+                      type="number"
+                      min={60}
+                      value={configDraft.timerSeconds}
+                      onChange={(e) => setConfigDraft((c) => ({ ...c, timerSeconds: Number(e.target.value) }))}
                     />
                   </label>
-                  <label className="block text-[11px] text-[#8C8880] space-y-1">
-                    <span className="font-bold">Umumkan pengundian</span>
-                    <textarea
-                      value={briefingDraft.draw}
-                      onChange={(e) => setBriefingDraft((b) => ({ ...b, draw: e.target.value }))}
-                      rows={2}
-                      placeholder="Umumkan pengundian urutan presentasi kelompok."
-                      className="w-full px-2.5 py-2 rounded-xl border border-[#D9D7D0] text-xs text-[#1B1B1B]"
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-[#8C8880]">Target peserta (opsional)</span>
+                    <input
+                      className={INPUT}
+                      type="number"
+                      min={1}
+                      value={configDraft.expectedCount}
+                      placeholder="otomatis dari tenant"
+                      onChange={(e) => setConfigDraft((c) => ({ ...c, expectedCount: e.target.value }))}
                     />
                   </label>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void saveBriefing()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-60"
-                  >
-                    <Save className="w-3.5 h-3.5" /> Simpan pengumuman layar
-                  </button>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void saveConfig()}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1B1B1B] text-white text-xs font-bold disabled:opacity-60"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Simpan konfigurasi
+                    </button>
+                  </div>
                 </div>
-                <ActivityPanel sessionId={detail.session.id} />
-              </div>
+              </>
             )}
 
             {isMonolog && (
