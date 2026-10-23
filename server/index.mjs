@@ -3112,15 +3112,14 @@ app.get('/api/events', wrap(async (req, res) => {
   // 403 drive, requireDivision, canSeeEventDivision pada diskusi).
   const roles = (req.authUser?.roles || []).map((r) => r.role);
   const isKomsaOrBod = roles.includes('SUPERADMIN') || roles.includes('KOMISI');
-  let isBodTimkerja = false;
+  let bodTimkerja = false;
   try {
-    isBodTimkerja = roles.includes('COMMITTEE') && await (async () => {
-      const sm = await prisma.strukturMember.findFirst({ where: { email: req.authUser?.email || '' } });
-      return !(sm?.division) || sm.division.toUpperCase() === 'TIMKERJA';
-    })();
-  } catch { /* strukturMember query failed, skip */ }
+    if (roles.includes('COMMITTEE')) {
+      bodTimkerja = await isBodTimkerja(req.authUser);
+    }
+  } catch { /* BOD lookup failed, skip */ }
 
-  if (isKomsaOrBod || isBodTimkerja) {
+  if (isKomsaOrBod || bodTimkerja) {
     return res.json({ events, meta: { access: 'full' } });
   }
 

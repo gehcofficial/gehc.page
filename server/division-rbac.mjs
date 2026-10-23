@@ -11,6 +11,7 @@
  */
 
 import { getPrisma } from './db.mjs';
+import { isYouthBodCommittee } from './lib/bod-youth.mjs';
 
 /** Get user's global roles */
 export function globalRoles(authUser) {
@@ -24,23 +25,11 @@ export function isKomisiOrSuperadmin(authUser) {
 }
 
 /**
- * Check if COMMITTEE user is BOD derivative (TIMKERJA scope).
- * BOD = COMMITTEE + struktur_members.division = TIMKERJA or empty.
+ * BOD Tim Kerja Youth: COMMITTEE + OrgAssignment di TIMKERJA_BOD (YOUTH)
+ * atau RoleAssignment.division = TIMKERJA. COMMITTEE tanpa penugasan BOD bukan BOD.
  */
 export async function isBodTimkerja(authUser) {
-  const roles = globalRoles(authUser);
-  if (!roles.includes('COMMITTEE')) return false;
-  if (!authUser?.email) return false;
-  try {
-    const prisma = getPrisma();
-    if (!prisma) return false;
-    const sm = await prisma.strukturMember.findFirst({
-      where: { email: authUser.email },
-    });
-    return !(sm?.division) || sm.division.toUpperCase() === 'TIMKERJA';
-  } catch {
-    return false;
-  }
+  return isYouthBodCommittee(authUser);
 }
 
 /**

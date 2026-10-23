@@ -49,7 +49,7 @@ export function senderCapabilities(user, strukturDivision = null) {
   }
   if (roles.includes('COMMITTEE')) {
     const div = String(strukturDivision || '').toUpperCase();
-    const isBod = !div || div === 'TIMKERJA';
+    const isBod = div === 'TIMKERJA';
     return { ...(isBod ? CAP_BOD : CAP_PIC), role: isBod ? 'COMMITTEE' : 'COMMITTEE', scopeDivision: isBod ? null : div, isBod };
   }
   if (roles.includes('MENTOR') || roles.includes('CO_MENTOR')) {
