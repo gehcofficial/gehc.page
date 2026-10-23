@@ -17,6 +17,7 @@ import {
   hasPendingRequest,
 } from '../lib/penatalayan-requests.mjs';
 import { isScopedMentor, assertMentorAssignScope } from '../lib/mentor-assign.mjs';
+import { resolveServingPairForWeek, pairNamesForCaption } from '../lib/resolve-serving-pair.mjs';
 
 const uid = (p) => `${p}-${crypto.randomUUID()}`;
 
@@ -31,6 +32,26 @@ function dateOnly(d) {
 
 async function loadLink(prisma, token) {
   return prisma.penatalayanBodLink.findUnique({ where: { token: String(token) } }).catch(() => null);
+}
+
+async function resolvePairForBodLink(prisma, { event, link }) {
+  const gridDate = link?.serviceDate
+    ? dateOnly(link.serviceDate)
+    : (event?.eventDate ? dateOnly(event.eventDate) : null);
+  if (!gridDate) return null;
+  return resolveServingPairForWeek(prisma, {
+    gridDate,
+    eventId: event?.id || link?.eventId,
+    linkHostGroupId: link?.hostGroupId,
+    linkResponsibleGroupId: link?.responsibleGroupId,
+  });
+}
+
+function shouldRefreshBodLinkGroups(link, resolved, refresh) {
+  if (!resolved?.hostGroupId || !resolved?.responsibleGroupId) return false;
+  if (!link?.hostGroupId || !link?.responsibleGroupId) return true;
+  if (refresh) return true;
+  return false;
 }
 
 async function loadSession(prisma, link) {
@@ -89,18 +110,44 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
       if (!(await canManageBodLink(req.authUser))) {
         return res.status(403).json({ error: 'Hanya BOD Tim Kerja / Komisi yang dapat membuat tautan.' });
       }
-      const { eventId, patternCode, hostGroupId, responsibleGroupId } = req.body || {};
+      const { eventId, patternCode, hostGroupId, responsibleGroupId, refreshGroups } = req.body || {};
       if (!eventId) return res.status(400).json({ error: 'eventId wajib.' });
       const event = await prisma.eventProgram.findUnique({ where: { id: String(eventId) } }).catch(() => null);
       if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
       const serviceDate = event.eventDate ? new Date(event.eventDate) : new Date();
       const existing = await prisma.penatalayanBodLink.findUnique({ where: { eventId: String(eventId) } }).catch(() => null);
       if (existing) {
+        const refresh = Boolean(refreshGroups);
+        const resolved = await resolvePairForBodLink(prisma, { event, link: existing });
+        let linkOut = existing;
+        if (resolved && shouldRefreshBodLinkGroups(existing, resolved, refresh)) {
+          linkOut = await prisma.penatalayanBodLink.update({
+            where: { id: existing.id },
+            data: {
+              hostGroupId: resolved.hostGroupId,
+              responsibleGroupId: resolved.responsibleGroupId,
+              patternCode: String(patternCode || existing.patternCode || 'CREATIVE_LAB').toUpperCase().slice(0, 32),
+            },
+          });
+        }
         return res.json({
-          link: existing,
+          link: linkOut,
           url: `/#/portal/mentor/penatalayan-tautan?token=${existing.token}`,
           reused: true,
+          pairSource: resolved?.source || null,
         });
+      }
+      let hostId = hostGroupId ? String(hostGroupId) : null;
+      let respId = responsibleGroupId ? String(responsibleGroupId) : null;
+      if (!hostId || !respId) {
+        const resolved = await resolvePairForBodLink(prisma, {
+          event,
+          link: { serviceDate, hostGroupId: hostId, responsibleGroupId: respId, eventId: event.id },
+        });
+        if (resolved) {
+          hostId = hostId || resolved.hostGroupId;
+          respId = respId || resolved.responsibleGroupId;
+        }
       }
       const token = tokenSlug();
       const row = await prisma.penatalayanBodLink.create({
@@ -110,8 +157,8 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
           eventId: String(eventId),
           serviceDate,
           patternCode: String(patternCode || 'CREATIVE_LAB').toUpperCase().slice(0, 32),
-          hostGroupId: hostGroupId ? String(hostGroupId) : null,
-          responsibleGroupId: responsibleGroupId ? String(responsibleGroupId) : null,
+          hostGroupId: hostId,
+          responsibleGroupId: respId,
           createdById: req.authUser?.id || 'unknown',
         },
       });
@@ -259,23 +306,21 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
       const dateLabel = session.serviceDate
         ? new Date(`${session.serviceDate}T00:00:00Z`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
         : '—';
-      let hostGroup = null;
-      let responsibleGroup = null;
-      if (link.hostGroupId || link.responsibleGroupId) {
-        const ids = [link.hostGroupId, link.responsibleGroupId].filter(Boolean);
-        const groups = ids.length
-          ? await prisma.group.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }).catch(() => [])
-          : [];
-        hostGroup = groups.find((g) => g.id === link.hostGroupId)?.name || null;
-        responsibleGroup = groups.find((g) => g.id === link.responsibleGroupId)?.name || null;
-      }
+      const event = link.eventId
+        ? await prisma.eventProgram.findUnique({
+          where: { id: String(link.eventId) },
+          select: { id: true, eventDate: true, metadata: true },
+        }).catch(() => null)
+        : null;
+      const resolved = await resolvePairForBodLink(prisma, { event, link });
+      const { hostGroup, responsibleGroup, source, warnings } = pairNamesForCaption(resolved || {});
       const text = buildResponsibleGroupCaption({
         dateLabel,
         hostGroup,
         responsibleGroup,
         patternCode: session.patternCode,
       });
-      res.json({ caption: text, progress: session.progress });
+      res.json({ caption: text, progress: session.progress, pairSource: source, warnings });
     }),
   );
 
