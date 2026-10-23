@@ -25,6 +25,7 @@ type Session = {
   slots: Slot[];
   progress?: { percent: number; filled: number; required: number };
   canManage?: boolean;
+  domain?: 'HOST' | 'RESPONSIBLE';
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -43,6 +44,14 @@ function tokenFromHash(): string {
   }
 }
 
+function domainFromHash(): '' | 'HOST' | 'RESPONSIBLE' {
+  try {
+    const d = String(parseHashSearch().get('domain') || '').toUpperCase();
+    if (d === 'HOST' || d === 'RESPONSIBLE') return d;
+  } catch { /* abaikan */ }
+  return '';
+}
+
 type Props = {
   /** Token dari Panel BOD (tanpa mengubah hash). */
   tokenOverride?: string;
@@ -50,6 +59,7 @@ type Props = {
 
 export const PenatalayanBodLinkPanel: React.FC<Props> = ({ tokenOverride }) => {
   const token = useMemo(() => String(tokenOverride || '').trim() || tokenFromHash(), [tokenOverride]);
+  const domain = domainFromHash();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +85,8 @@ export const PenatalayanBodLinkPanel: React.FC<Props> = ({ tokenOverride }) => {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`/api/penatalayan/bod-links/token/${encodeURIComponent(token)}`, { credentials: 'include' });
+      const q = domain ? `?domain=${domain}` : '';
+      const r = await fetch(`/api/penatalayan/bod-links/token/${encodeURIComponent(token)}${q}`, { credentials: 'include' });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setSession(d as Session);
@@ -85,7 +96,7 @@ export const PenatalayanBodLinkPanel: React.FC<Props> = ({ tokenOverride }) => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, domain]);
 
   useEffect(() => {
     load();
@@ -114,7 +125,10 @@ export const PenatalayanBodLinkPanel: React.FC<Props> = ({ tokenOverride }) => {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: [{ roleKey: slot.roleKey, serviceRoleId: slot.serviceRoleId, userId: pick.value }] }),
+        body: JSON.stringify({
+          domain: domain || undefined,
+          items: [{ roleKey: slot.roleKey, serviceRoleId: slot.serviceRoleId, userId: pick.value }],
+        }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal menyimpan.');
@@ -189,6 +203,12 @@ export const PenatalayanBodLinkPanel: React.FC<Props> = ({ tokenOverride }) => {
     <div className="space-y-4 max-w-lg mx-auto pb-8">
       <header className="rounded-card border border-line bg-white p-4 space-y-2">
         <h1 className="font-display text-xl text-ink">Pengisian Penatalayan</h1>
+        {session?.domain === 'HOST' && (
+          <p className="text-sm font-semibold text-ink">🏠 Tuan Rumah — peran Koinonia · Diakonia</p>
+        )}
+        {session?.domain === 'RESPONSIBLE' && (
+          <p className="text-sm font-semibold text-ink">🎯 Penanggung Jawab — peran Liturgia · Didaskalia · Marturia</p>
+        )}
         {session?.event?.name && <p className="text-sm text-muted">{session.event.name}</p>}
         {session?.serviceDate && (
           <p className="text-sm">

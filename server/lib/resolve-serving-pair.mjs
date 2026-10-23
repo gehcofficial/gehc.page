@@ -179,6 +179,22 @@ export async function resolveServingPairForWeek(prisma, input) {
   return emptyPair(gridDate, lookupDates, warnings);
 }
 
+/** Grup penanggung/tuan rumah untuk event — metadata override atau rotasi expected. */
+export async function resolvePenatalayanGroupsForEvent(prisma, event) {
+  if (!prisma || !event) return null;
+  const day = event.eventDate ? new Date(event.eventDate).toISOString().slice(0, 10) : null;
+  if (!day) return parsePenatalayanGroups(event.metadata);
+  const pair = await resolveServingPairForWeek(prisma, { gridDate: day, eventId: event.id });
+  if (!pair?.responsibleGroupId || !pair?.hostGroupId) return parsePenatalayanGroups(event.metadata);
+  return {
+    responsibleGroupId: pair.responsibleGroupId,
+    hostGroupId: pair.hostGroupId,
+    responsibleGroupName: pair.responsibleGroup?.name || null,
+    hostGroupName: pair.hostGroup?.name || null,
+    source: pair.source,
+  };
+}
+
 export function pairNamesForCaption(resolved) {
   return {
     responsibleGroup: resolved?.responsibleGroup?.name || null,

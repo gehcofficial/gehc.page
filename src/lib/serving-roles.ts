@@ -5,10 +5,12 @@
 export {
   displayServiceRoleName,
   buildResponsibleGroupCaption,
+  buildBodCaptionLinks,
   rolesForPattern,
   WORSHIP_ORDER_ROLES,
   resolveRoleKey,
   canonicalLabel,
+  ownerScopeForRoleKey,
   WORSHIP_PATTERN_CODES,
 } from '../../server/lib/serving-role-catalog.mjs';
 

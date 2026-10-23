@@ -35,6 +35,7 @@ type AssignRow = {
   needsMove?: boolean;
   expectedCycleIndex?: number | null;
   needsSync?: boolean;
+  autoHealed?: boolean;
   override?: { condition: string; note?: string | null; partnerLabel?: string | null; linkedEventId?: string | null; newEventDate?: string | null } | null;
 };
 
@@ -874,6 +875,8 @@ export const ServicePlanPanel: React.FC = () => {
                             {assign && !assign.isVirtual && <span className="text-[10px] text-[#8C8880]">real</span>}
                             {assign?.isVirtual && <span className="text-[10px] text-sky-700">prediksi</span>}
                             {assign?.isSwapped && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold" title={assign.swapReason || ''}>tukar</span>}
+                            {special?.needsMove && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold"><AlertTriangle className="w-3 h-3" /> geser — pindahkan jadwal</span>}
+                            {assign?.autoHealed && !assign?.needsSync && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200 font-bold">idx diselaraskan otomatis</span>}
                             {assign?.needsSync && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold"><AlertTriangle className="w-3 h-3" /> perlu sinkron</span>}
                             {ov?.note && <span className="text-[10px] text-[#8C8880] italic" title={ov.note}>📝</span>}
                             <span className="ml-auto flex gap-1.5">

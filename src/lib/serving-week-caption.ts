@@ -26,7 +26,9 @@ export function buildServingRosterText(invite: WeekInvite): string {
   const lines: string[] = [];
   const s = invite.serving;
   if (s?.responsibleGroup?.name || s?.hostGroup?.name) {
-    lines.push(`Penanggung: ${s?.responsibleGroup?.name || '—'} → Tuan rumah: ${s?.hostGroup?.name || '—'}`);
+    lines.push(
+      `🏠 Tuan Rumah: ${s?.hostGroup?.name || '—'}   |   🎯 Penanggung Jawab: ${s?.responsibleGroup?.name || '—'}`,
+    );
   }
   if (invite.mentors?.length) {
     lines.push('', 'Mentor/perwakilan:');
@@ -48,17 +50,29 @@ export function buildServingInviteCaption(opts: {
   waUrl: string;
   repDayText?: string;
   invite: WeekInvite;
+  bodLinks?: { RESPONSIBLE?: string; HOST?: string } | null;
 }): string {
   const s = opts.invite.serving;
+  const hostLine = s?.responsibleGroup?.name || s?.hostGroup?.name
+    ? `🏠 Tuan Rumah: ${s?.hostGroup?.name || '—'}   |   🎯 Penanggung Jawab: ${s?.responsibleGroup?.name || '—'}`
+    : null;
+  const linkLines = opts.bodLinks?.RESPONSIBLE || opts.bodLinks?.HOST
+    ? [
+      '',
+      opts.bodLinks.RESPONSIBLE ? 'Isi peran Penanggung Jawab (Liturgia · Didaskalia · Marturia):' : null,
+      opts.bodLinks.RESPONSIBLE || null,
+      opts.bodLinks.HOST ? 'Isi peran Tuan Rumah (Koinonia · Diakonia):' : null,
+      opts.bodLinks.HOST || null,
+    ]
+    : [];
   return [
     `Shalom! Grup koordinasi ibadah Minggu ${fmtDateID(opts.date)} telah dibuka.`,
     s?.event?.name ? `Ibadah: ${s.event.name}` : null,
-    s?.responsibleGroup?.name || s?.hostGroup?.name
-      ? `Penanggung: ${s?.responsibleGroup?.name || '—'} → Tuan rumah: ${s?.hostGroup?.name || '—'}`
-      : null,
+    hostLine,
     '',
     'Masuk grup di sini:',
     opts.waUrl,
+    ...linkLines,
     '',
     opts.repDayText ? `Representative Day: ${opts.repDayText}` : null,
     opts.repDayText ? '' : null,

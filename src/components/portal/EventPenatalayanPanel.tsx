@@ -24,6 +24,14 @@ type PenEvent = {
 
 type GroupPick = { id: string; name: string };
 
+type ResolvedGroups = {
+  responsibleGroupId?: string | null;
+  hostGroupId?: string | null;
+  responsibleGroupName?: string | null;
+  hostGroupName?: string | null;
+  source?: string | null;
+};
+
 type Assignment = {
   id: string;
   serviceRoleId: string;
@@ -92,6 +100,8 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
   const [bodCaption, setBodCaption] = useState<string | null>(null);
   const [bodBusy, setBodBusy] = useState(false);
   const [bodMsg, setBodMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [resolvedGroups, setResolvedGroups] = useState<ResolvedGroups | null>(null);
+  const [groupSource, setGroupSource] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,8 +120,21 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       const pg = (d.event?.metadata && typeof d.event.metadata === 'object'
         ? (d.event.metadata as Record<string, unknown>).penatalayanGroups
         : null) as { responsibleGroupId?: string; hostGroupId?: string } | null;
-      setRespId(pg?.responsibleGroupId ? String(pg.responsibleGroupId) : '');
-      setHostId(pg?.hostGroupId ? String(pg.hostGroupId) : '');
+      const rg = (d.resolvedGroups || null) as ResolvedGroups | null;
+      setResolvedGroups(rg);
+      if (pg?.responsibleGroupId || pg?.hostGroupId) {
+        setRespId(pg?.responsibleGroupId ? String(pg.responsibleGroupId) : '');
+        setHostId(pg?.hostGroupId ? String(pg.hostGroupId) : '');
+        setGroupSource('override event');
+      } else if (rg?.responsibleGroupId && rg?.hostGroupId) {
+        setRespId(String(rg.responsibleGroupId));
+        setHostId(String(rg.hostGroupId));
+        setGroupSource(rg.source && rg.source !== 'none' ? `otomatis (${rg.source})` : 'otomatis (rotasi)');
+      } else {
+        setRespId('');
+        setHostId('');
+        setGroupSource(null);
+      }
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat penatalayan.');
@@ -255,9 +278,14 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
     }
   };
 
+  const effectiveGroupIds = useMemo(() => ({
+    responsibleGroupId: respId || resolvedGroups?.responsibleGroupId || '',
+    hostGroupId: hostId || resolvedGroups?.hostGroupId || '',
+  }), [respId, hostId, resolvedGroups]);
+
   const sendRouting = async () => {
-    if (!respId || !hostId) {
-      setGroupMsg({ ok: false, text: 'Simpan grup Tuan Rumah & Penanggungjawab dulu.' });
+    if (!effectiveGroupIds.responsibleGroupId || !effectiveGroupIds.hostGroupId) {
+      setGroupMsg({ ok: false, text: 'Tidak ada pasangan grup untuk tanggal ini (rotasi atau override event).' });
       return;
     }
     if (!window.confirm('Kirim routing ke mentor & co-mentor kedua grup? Mereka akan menerima notifikasi + tautan pengisian usulan.')) return;
@@ -434,6 +462,11 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
             <p className="text-[11px] font-black uppercase tracking-widest text-[#8C8880]">
               Tuan Rumah & Penanggungjawab (routing grup)
             </p>
+            {groupSource && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                {groupSource}
+              </span>
+            )}
             {routingAt && (
               <span className="text-[10px] text-[#8C8880]">
                 Routing terakhir: {new Date(routingAt).toLocaleString('id-ID')}
@@ -481,7 +514,7 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
             <button
               type="button"
               onClick={() => void sendRouting()}
-              disabled={groupBusy !== null || !respId || !hostId}
+              disabled={groupBusy !== null || !effectiveGroupIds.responsibleGroupId || !effectiveGroupIds.hostGroupId}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold text-[#5C5850] hover:border-[#1B1B1B] disabled:opacity-40"
             >
               {groupBusy === 'route' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}
@@ -501,7 +534,7 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
                   hostGroup: groups.find((g) => g.id === hostId)?.name,
                 });
                 void navigator.clipboard?.writeText(text);
-                setGroupMsg({ ok: true, text: 'Caption peran untuk mentor penanggung disalin. Tuan rumah mengisi nama per peran.' });
+                setGroupMsg({ ok: true, text: 'Caption peran (dua domain) disalin.' });
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold text-[#5C5850]"
             >

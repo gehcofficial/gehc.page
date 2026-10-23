@@ -9320,7 +9320,9 @@ app.get('/api/events/:id/penatalayan', requireRole(...EVENT_PASTORAL_ROLES), wra
   ]);
 
   const { resolveWorshipPatternCode } = await import('./lib/event-worship-pattern.mjs');
+  const { resolvePenatalayanGroupsForEvent } = await import('./lib/resolve-serving-pair.mjs');
   const worshipPatternCode = await resolveWorshipPatternCode(prisma, event);
+  const resolvedGroups = await resolvePenatalayanGroupsForEvent(prisma, event);
 
   const keepContact = isPastoralStaff(req.authUser);
   res.json({
@@ -9332,6 +9334,7 @@ app.get('/api/events/:id/penatalayan', requireRole(...EVENT_PASTORAL_ROLES), wra
     })),
     previous,
     worshipPatternCode,
+    resolvedGroups,
   });
 }));
 
@@ -9346,10 +9349,16 @@ app.post('/api/events/:id/penatalayan-routing', requireRole('SUPERADMIN', 'KOMIS
     select: { id: true, name: true, eventDate: true, metadata: true },
   });
   if (!event) return res.status(404).json({ error: 'Event tidak ditemukan.' });
-  const groups = parsePenatalayanGroups(event.metadata);
-  if (!groups) {
-    return res.status(400).json({ error: 'Tetapkan dulu grup Tuan Rumah & Penanggungjawab untuk event ini.' });
+  const { resolvePenatalayanGroupsForEvent } = await import('./lib/resolve-serving-pair.mjs');
+  const resolved = await resolvePenatalayanGroupsForEvent(prisma, event);
+  const groups = resolved
+    ? { responsibleGroupId: resolved.responsibleGroupId, hostGroupId: resolved.hostGroupId }
+    : parsePenatalayanGroups(event.metadata);
+  if (!groups?.responsibleGroupId || !groups?.hostGroupId) {
+    return res.status(400).json({ error: 'Tidak ada pasangan grup penatalayan untuk tanggal ini (rotasi atau override event).' });
   }
+  const bodLink = await prisma.penatalayanBodLink.findUnique({ where: { eventId: event.id } }).catch(() => null);
+  const origin = String(process.env.APP_URL || 'https://youth.gehc.page').replace(/\/$/, '');
   const mentors = await resolveGroupMentors(prisma, groups);
   if (!mentors.length) {
     return res.json({ ok: true, recipients: 0, sent: [], warning: 'Belum ada mentor/co-mentor aktif di kedua grup.' });
@@ -9374,8 +9383,11 @@ app.post('/api/events/:id/penatalayan-routing', requireRole('SUPERADMIN', 'KOMIS
     for (const b of buckets.values()) {
       const gLabel = roleLabel(b.groupRole);
       const names = [...b.groupNames].join(' & ');
+      const domain = b.groupRole === 'TUAN_RUMAH' ? 'HOST' : 'RESPONSIBLE';
       const qs = dateISO ? `date=${dateISO}&event=${encodeURIComponent(event.id)}` : `event=${encodeURIComponent(event.id)}`;
-      const href = `#/portal/${b.namespace}/penatalayan-usulan?${qs}`;
+      const href = bodLink?.token
+        ? `${origin}/#/portal/${b.namespace}/penatalayan-tautan?token=${encodeURIComponent(bodLink.token)}&domain=${domain}`
+        : `#/portal/${b.namespace}/penatalayan-usulan?${qs}`;
       const result = await sendNotification({
         category: 'penatalayan',
         priority: 'TASK',
