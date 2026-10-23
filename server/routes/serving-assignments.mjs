@@ -5,6 +5,7 @@ import { sundaysInMonth } from '../lib/church-year.mjs';
 import { SERVING_PAIRS, resolvePairIds, resolvePairIdsDb } from '../lib/serving-cycle.mjs';
 import { applyServingBackfill, planServingBackfill } from '../lib/serving-backfill.mjs';
 import { listOverrides } from '../lib/service-overrides.mjs';
+import { geserConsumesRotationSlot } from '../lib/serving-week-expectations.mjs';
 
 function toDateOnly(d) {
   if (!d) return null;
@@ -159,6 +160,11 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
             if (moved) {
               moved._override = ov;
               moved._geserFrom = iso;
+              const expectedGeser = (baseIdx + seq) % 10;
+              moved._expectedCycleIndex = expectedGeser;
+              if (!moved.isSwapped && moved.cycleIndex !== expectedGeser && iso >= todayISO) {
+                moved._needsSync = true;
+              }
               specials.push({
                 ...moved,
                 id: `geser-${iso}`,
@@ -169,6 +175,7 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
                 isVirtual: false,
                 isSpecial: true,
               });
+              if (geserConsumesRotationSlot(ov, moved)) seq += 1;
               continue;
             }
             // Override tercatat tapi baris belum dipindah — tampilkan peringatan.
