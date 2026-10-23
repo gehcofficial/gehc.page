@@ -24,6 +24,12 @@ import {
 import { MdBlocks, parseMdLite } from '../../lib/md-lite';
 import { JURY_CRITERIA, ROUND_STEPS } from '../../lib/session-engine';
 import { normalizeCreativeLabPhases } from '../../lib/creative-lab-rundown';
+import {
+  canEditLiturgiaPatternVariant,
+  canViewFullWorshipRundown,
+  filterRundownPhases,
+  type RundownAccessContext,
+} from '../../lib/rundown-visibility';
 
 /** Detik → mm:ss (mis. 240 → 4:00, 60 → 1:00). */
 const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -40,6 +46,9 @@ type Props = {
   onVariantChange?: (patch: { opening?: string; offering?: string }) => void;
   onUse?: (code: string) => void;
   onCopyPlaybook?: (pattern: WorshipPatternLite) => void;
+  /** Filter rundown per divisi (Didaskalia studio). */
+  rundownAccess?: RundownAccessContext;
+  viewerDivision?: string | null;
 };
 
 const phaseKey = (f: { no?: unknown; title?: unknown; minutes?: unknown; parallelGroup?: unknown; track?: unknown }) =>
@@ -55,7 +64,28 @@ function PlaybookView({ text }: { text: string }) {
   );
 }
 
-export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, canWrite, busy, weekVariant, t0, onVariantChange, onUse, onCopyPlaybook }) => {
+export const WorshipPatternCatalog: React.FC<Props> = ({
+  patterns,
+  activeCode,
+  canWrite,
+  busy,
+  weekVariant,
+  t0,
+  onVariantChange,
+  onUse,
+  onCopyPlaybook,
+  rundownAccess,
+  viewerDivision,
+}) => {
+  const canViewFull = rundownAccess ? canViewFullWorshipRundown(rundownAccess) : true;
+  const variantEditable = rundownAccess
+    ? canEditLiturgiaPatternVariant({
+        canViewFull,
+        viewerDivision,
+        isSuperAdmin: rundownAccess.isSuperAdmin,
+        isKomisi: rundownAccess.isKomisi,
+      })
+    : true;
   const [openCode, setOpenCode] = useState<string | null>(activeCode || 'POST_TO_POST');
   const [query, setQuery] = useState('');
   const list = useMemo(() => {
@@ -166,11 +196,20 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
               const total = patternTotalMinutes(open.phases, isActive ? v : null);
               const jemaat = patternCongregationMinutes(open.phases, isActive ? v : null);
               const pre = patternPreMinutes(open.phases);
+              const phaseRows = filterRundownPhases(open.phases || [], {
+                canViewFull,
+                viewerDivision,
+              });
               const timeline = patternTimeline(open.phases);
               const byKey = new Map(timeline.map((t) => [phaseKey(t), t]));
               const warns = patternParallelCheck(open.phases);
               return (
                 <>
+                  {!canViewFull && (
+                    <p className="text-[10px] text-sky-800 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5">
+                      Rundown difilter untuk divisi Anda{viewerDivision ? ` (${divisionLabel(viewerDivision)})` : ''}. Rundown lengkap hanya untuk BOD Youth, Komisi, BPMJ, atau Superadmin.
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2">
                     <span className="text-[11px] font-black text-[#1B1B1B]">
                       {jemaat}&prime; jemaat{pre > 0 ? ` + ${pre}' kru (T-minus)` : ''}{v.offering === 'PENUH' && isActive ? ' · termasuk +6 penuh' : ''}
@@ -183,11 +222,14 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
                   </div>
                   {isActive && (
                     <div className="flex flex-wrap items-center gap-2">
+                      {!variantEditable && (
+                        <span className="text-[10px] text-[#8C8880]">Varian Pembuka/Persembahan (Liturgia) — baca saja di panel Didaskalia.</span>
+                      )}
                       <label className="text-[10px] font-bold text-[#8C8880]">
                         Pembuka:{' '}
                         <select
                           value={v.opening || 'KEDUANYA'}
-                          disabled={!canWrite || !!busy || !onVariantChange}
+                          disabled={!canWrite || !!busy || !onVariantChange || !variantEditable}
                           onChange={(e) => onVariantChange?.({ opening: e.target.value })}
                           className="rounded-lg border border-[#D9D7D0] bg-white px-2 py-1 text-[11px] font-bold text-[#1B1B1B] disabled:opacity-60"
                         >
@@ -200,7 +242,7 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
                         Persembahan:{' '}
                         <select
                           value={v.offering || 'HEMAT'}
-                          disabled={!canWrite || !!busy || !onVariantChange}
+                          disabled={!canWrite || !!busy || !onVariantChange || !variantEditable}
                           onChange={(e) => onVariantChange?.({ offering: e.target.value })}
                           className="rounded-lg border border-[#D9D7D0] bg-white px-2 py-1 text-[11px] font-bold text-[#1B1B1B] disabled:opacity-60"
                         >
@@ -231,7 +273,7 @@ export const WorshipPatternCatalog: React.FC<Props> = ({ patterns, activeCode, c
                           </tr>
                         </thead>
                         <tbody>
-                          {(open.phases || []).map((f, i) => {
+                          {phaseRows.map((f, i) => {
                             const t = byKey.get(phaseKey(f));
                             const anchor = String((f as { anchor?: unknown }).anchor || '').toUpperCase();
                             const parallel = String((f as { track?: unknown }).track || '').toLowerCase() === 'parallel';

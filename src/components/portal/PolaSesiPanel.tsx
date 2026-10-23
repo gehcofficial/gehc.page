@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Calendar, Clapperboard, Loader2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useMyDivisions } from '../../hooks/useMyDivisions';
+import { resolvePortalId } from '../../lib/portal-profiles';
 import { WorshipPatternCatalog } from './WorshipPatternCatalog';
 import { SessionDraftTab } from './SessionDraftTab';
 import { MentoringControl } from '../mentoring/MentoringControl';
@@ -47,7 +49,27 @@ function fmtDate(iso: string) {
  * jadi ganti event di atas otomatis reload pola + draft + kontrol di bawah.
  */
 export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndexProp, eventName, initialSub, weekLoading }) => {
-  const { addToast, currentRole, isKomisi, isBodTimkerja, isDidaskalia } = useApp();
+  const { addToast, currentRole, isKomisi, isBodTimkerja, isDidaskalia, isSuperAdmin, isBpmj } = useApp();
+  const myDiv = useMyDivisions();
+  const portalId = useMemo(
+    () => (typeof window !== 'undefined' ? resolvePortalId(window.location.hostname, window.location.search) : 'youth'),
+    [],
+  );
+  const viewerDivision = useMemo(() => {
+    const set = new Set([...(myDiv.divisions || []), ...(myDiv.headDivisions || [])].map((d) => String(d).toUpperCase()));
+    if (set.has('DIDASKALIA')) return 'DIDASKALIA';
+    return set.values().next().value || null;
+  }, [myDiv.divisions, myDiv.headDivisions]);
+  const rundownAccess = useMemo(
+    () => ({
+      portalId,
+      isSuperAdmin: isSuperAdmin || currentRole === 'SUPERADMIN',
+      isBpmj,
+      isKomisi,
+      isBodTimkerja,
+    }),
+    [portalId, isSuperAdmin, currentRole, isBpmj, isKomisi, isBodTimkerja],
+  );
   const canWrite = isKomisi || currentRole === 'SUPERADMIN' || isBodTimkerja || isDidaskalia;
 
   // Sub-tab dalam Pola & Sesi: katalog (pilih pola pekan) / draft (isi sesi event) / kontrol (hari-H).
@@ -326,6 +348,8 @@ export const PolaSesiPanel: React.FC<Props> = ({ yearMonth, weekIndex: weekIndex
               patterns={patterns}
               activeCode={weekMeta?.patternCode || 'MONOLOG'}
               canWrite={canWrite}
+              rundownAccess={rundownAccess}
+              viewerDivision={viewerDivision}
               busy={!!busy}
               weekVariant={weekMeta?.patternVariant || { opening: 'KEDUANYA', offering: 'HEMAT' }}
               t0={(() => {

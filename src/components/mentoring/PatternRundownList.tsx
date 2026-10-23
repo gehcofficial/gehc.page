@@ -1,5 +1,10 @@
 import React from 'react';
 import { normalizeCreativeLabPhases } from '../../lib/creative-lab-rundown';
+import {
+  canViewFullWorshipRundown,
+  filterRundownPhases,
+  type RundownAccessContext,
+} from '../../lib/rundown-visibility';
 import { divisionLabel } from '../../lib/worship-patterns';
 
 export type PatternPhase = {
@@ -19,8 +24,12 @@ export const PatternRundownList: React.FC<{
   patternName?: string | null;
   phases?: PatternPhase[] | null;
   bare?: boolean;
-}> = ({ patternName, phases, bare }) => {
-  const rows = normalizeCreativeLabPhases(Array.isArray(phases) ? phases : []);
+  rundownAccess?: RundownAccessContext;
+  viewerDivision?: string | null;
+}> = ({ patternName, phases, bare, rundownAccess, viewerDivision }) => {
+  const normalized = normalizeCreativeLabPhases(Array.isArray(phases) ? phases : []);
+  const canViewFull = rundownAccess ? canViewFullWorshipRundown(rundownAccess) : true;
+  const rows = filterRundownPhases(normalized, { canViewFull, viewerDivision });
   if (!rows.length) return null;
   const list = (
     <ol className="space-y-2">
