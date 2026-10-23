@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
   canAccessDivisionInbox,
   divisionHeadDivisions,
@@ -6,6 +6,20 @@ import {
 } from '../../server/lib/penatalayan-bod-access.mjs';
 
 describe('division inbox RBAC', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('SUPERADMIN (email terpercaya) lolos inbox tanpa prisma', async () => {
+    vi.stubEnv('SUPERADMIN_EMAILS', 'ops@gehc.demo');
+    const ok = await canAccessDivisionInbox(
+      { id: 'u1', email: 'ops@gehc.demo', roles: [{ role: 'MENTOR' }] },
+      null,
+      'LITURGIA',
+    );
+    expect(ok).toBe(true);
+  });
+
   it('koordinator penatalayan (KOMISI) boleh inbox divisi mana pun', async () => {
     expect(isPenatalayanCoordinator({ roles: [{ role: 'KOMISI' }] })).toBe(true);
     const ok = await canAccessDivisionInbox(

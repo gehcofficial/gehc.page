@@ -1,11 +1,19 @@
 /**
  * RBAC tautan BOD penatalayan (Youth tenant).
  */
+import { isSuperadminEmail } from '../auth.mjs';
 import { isKomisiOrSuperadmin, isBodTimkerja, globalRoles } from '../division-rbac.mjs';
 
 const FILL_ROLES = new Set(['MENTOR', 'CO_MENTOR', 'COMMITTEE', 'KOMISI', 'SUPERADMIN']);
 
 const COORD_ROLES = ['SUPERADMIN', 'KOMISI', 'COMMITTEE'];
+
+/** Platform admin — selaras requireRole() (peran SUPERADMIN atau email SUPERADMIN_EMAILS). */
+export function isPenatalayanSuperadmin(authUser) {
+  if (!authUser) return false;
+  if (globalRoles(authUser).includes('SUPERADMIN')) return true;
+  return isSuperadminEmail(authUser.email);
+}
 
 /** Sama dengan isCoord di penatalayan-requests (antrean divisi). */
 export function isPenatalayanCoordinator(authUser) {
@@ -30,7 +38,9 @@ export async function divisionHeadDivisions(prisma, userId) {
 
 /** Boleh melihat inbox antrean divisi (selaras GET /api/penatalayan/requests). */
 export async function canAccessDivisionInbox(authUser, prisma, division) {
-  if (!authUser || !division) return false;
+  if (!authUser) return false;
+  if (isPenatalayanSuperadmin(authUser)) return true;
+  if (!division) return false;
   if (isPenatalayanCoordinator(authUser)) return true;
   if (await canManageBodLink(authUser)) return true;
   const div = String(division).toUpperCase();
@@ -48,6 +58,7 @@ export function isBodCoordinator(authUser) {
 
 export async function canManageBodLink(authUser) {
   if (!authUser) return false;
+  if (isPenatalayanSuperadmin(authUser)) return true;
   if (isKomisiOrSuperadmin(authUser)) return true;
   const roles = globalRoles(authUser);
   if (!roles.includes('COMMITTEE')) return false;
@@ -76,6 +87,7 @@ export async function isDivisionHeadOf(prisma, userId, division) {
  */
 export async function canFillBodLink(authUser, prisma, link) {
   if (!authUser || !link) return false;
+  if (isPenatalayanSuperadmin(authUser)) return true;
   if (await canManageBodLink(authUser)) return true;
   const roles = globalRoles(authUser);
   if (roles.some((r) => FILL_ROLES.has(r))) {

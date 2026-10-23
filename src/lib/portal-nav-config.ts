@@ -223,6 +223,7 @@ export const NAMESPACE_NAV_OVERRIDES: Partial<Record<UserRole, string[]>> = {
     'catalog',
     'org-hierarchy',
     'groups-monitoring',
+    'penatalayan-tautan',
     'beyonders-leaders',
     'pastoral-care',
     'jethro',
