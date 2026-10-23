@@ -31,7 +31,9 @@ function dateLabelID(iso?: string | null): string {
 
 /** Link pendaftaran publik (tanpa login). */
 export function inviteLink(input: Pick<InviteCaptionInput, 'slug' | 'origin'>): string {
-  const origin = (input.origin || '').replace(/\/$/, '') || 'https://youth.gehc.page';
+  const fallback =
+    typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : 'https://youth.gehc.page';
+  const origin = (input.origin || '').replace(/\/$/, '') || fallback;
   if (!input.slug) return `${origin}/#/register`;
   return `${origin}/#/event/${encodeURIComponent(input.slug)}`;
 }

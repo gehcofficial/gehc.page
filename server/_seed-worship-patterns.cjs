@@ -444,18 +444,18 @@ const PATTERNS = [
     modules: ['likert', 'rooms', 'timer', 'notes', 'chips', 'wordcloud'],
     phases: [
       {
-        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Liturgia',
+        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Liturgia', division: 'LITURGIA',
         notes: 'Buka dengan 2 lagu syukur yang mengarah ke tema.',
         segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
       },
       {
-        no: 2, title: 'Monolog', minutes: 15, owner: 'Main Speaker (Didaskalia)',
+        no: 2, title: 'Monolog', minutes: 15, owner: 'Main Speaker (Didaskalia)', division: 'DIDASKALIA',
         notes: 'Injil sebagai solusi praktis pergumulan Hubungan/Pekerjaan/Keluarga.',
         segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
       },
-      { no: 3, title: 'Briefing', minutes: 2, owner: 'Main Speaker', notes: 'Aturan main: total 20 menit; bebas pindah pos bila concern terjawab 5-6 menit.' },
-      { no: 4, title: 'Sesi 1 · Kunjungan Pos', minutes: 20, owner: 'PIC pos', notes: '3 pos serentak (paralel). Solusi teologis + praktis per Likert; tanya jawab; catatan individu.' },
-      { no: 5, title: 'Wrap-up & Lesson Learned', minutes: 10, owner: 'MC', notes: 'Kembali ke ruang utama; pilih chip words maks 3; doa penutup.' },
+      { no: 3, title: 'Briefing', minutes: 2, owner: 'Main Speaker', division: 'DIDASKALIA', notes: 'Aturan main: total 20 menit; bebas pindah pos bila concern terjawab 5-6 menit.' },
+      { no: 4, title: 'Sesi 1 · Kunjungan Pos', minutes: 20, owner: 'PIC pos', division: 'DIDASKALIA', notes: '3 pos serentak (paralel). Solusi teologis + praktis per Likert; tanya jawab; catatan individu.' },
+      { no: 5, title: 'Wrap-up & Lesson Learned', minutes: 10, owner: 'MC', division: 'DIDASKALIA', notes: 'Kembali ke ruang utama; pilih chip words maks 3; doa penutup.' },
     ],
     playbook: POST_TO_POST_PLAYBOOK,
     sortOrder: 10,
@@ -468,14 +468,14 @@ const PATTERNS = [
     modules: ['rounds', 'timer', 'teams'],
     phases: [
       {
-        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Main Speaker',
+        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Main Speaker', division: 'LITURGIA',
         notes: 'Doa + baca firman pekan + bacakan aturan emas.',
         segments: [
           { key: 'pembuka', label: 'Pembuka', kind: 'song', songs: 1 },
           { key: 'firman', label: 'Firman', kind: 'firman', auto: true },
         ],
       },
-      { no: 2, title: 'Sesi 1 · Debat', minutes: 100, owner: 'Moderator', notes: '5 ronde × 20 menit, 11 slide per ronde; sanggahan kedua utamakan Mentee.' },
+      { no: 2, title: 'Sesi 1 · Debat', minutes: 100, owner: 'Moderator', division: 'DIDASKALIA', notes: '5 ronde × 20 menit, 11 slide per ronde; sanggahan kedua utamakan Mentee.' },
       {
         no: 3, title: 'Konklusi', minutes: 20, owner: 'Main Speaker', division: 'DIDASKALIA',
         notes: 'Juri rekap skor, lalu validasi dan Trap Reveal: dikotomi palsu, panggilan dari firman pekan.',
@@ -622,7 +622,7 @@ const PATTERNS = [
         notes: 'Layout meja per kelompok (5-8 orang), jar/toples, kertas 6/orang, media dua stasiun, cat, kuas, koran/celemek, area jemur. Bahan aktivitas dibagikan ke mentor dan co-mentor saat kedatangan, bukan di tengah sesi. Jam jemaat (T0) mulai setelah blok PRA selesai.',
       },
       {
-        no: null, title: 'Doa Petugas', minutes: 10, owner: 'Komisi/Tim Kerja, Didaskalia', division: 'DIDASKALIA',
+        no: null, title: 'Doa Petugas', minutes: 10, owner: 'Komisi/Tim Kerja, Tuan Rumah', division: 'KOINONIA',
         anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
         notes: 'Doa, pembagian stasiun, briefing perwakilan kelompok dan MC (paralel). Tak tambah total.',
       },

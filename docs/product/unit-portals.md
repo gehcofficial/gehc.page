@@ -1,6 +1,6 @@
 # Portal per Unit — Usulan Modul (F3.5)
 
-> Status: **usulan untuk ditinjau** (26 Sep 2026). Belum ada implementasi.
+> Status: **MVP modul aktif** (Okt 2026) — `UnitPortalHome` di dashboard non-Pemuda, kartu modul per portal, Pengurus/Anggota/Kolom/BPMJ ter-scope tenant; kurikulum SM, koinonia mendalam, kas unit masih terbuka.
 > Melanjutkan F1–F3.4 (portal per domain, tenant, peran per unit, data ter-scope).
 > Dokumen desain besar: [`church-portal.md`](church-portal.md).
 > Kepatuhan SMSI-82 (istilah portal vs Tata Gereja):

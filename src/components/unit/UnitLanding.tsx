@@ -20,6 +20,7 @@ import { useMediaSlots } from '../../hooks/useMediaSlots';
 import { useLandingMedia } from '../../hooks/useLandingMedia';
 import { usePortalTheme } from '../../hooks/usePortalTheme';
 import { CHURCH_UNITS, DEFAULT_MAP_URL } from '../../data/churchUnits';
+import { applyDocumentMeta, documentMetaForPortal } from '../../lib/document-meta';
 import { resolvePortalId, type PortalId } from '../../lib/portal-profiles';
 
 type Socials = { instagram?: string; facebook?: string; tiktok?: string; youtube?: string };
@@ -211,8 +212,8 @@ const UnitLanding: React.FC = () => {
   }, [gallery]);
 
   useEffect(() => {
-    if (typeof document !== 'undefined') document.title = `${unitName} — GEHC.page`;
-  }, [unitName]);
+    applyDocumentMeta(documentMetaForPortal(portalId));
+  }, [portalId]);
 
   return (
     <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B1B] relative overflow-x-hidden">

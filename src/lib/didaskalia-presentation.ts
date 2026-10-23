@@ -122,7 +122,9 @@ export function materialHashPath(r: ParsedMaterialHash): string {
 }
 
 export function materialAbsoluteUrl(r: ParsedMaterialHash, origin?: string): string {
-  const base = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://youth.gehc.page');
+  const base =
+    origin ||
+    (typeof window !== 'undefined' ? window.location.origin : 'https://youth.gehc.page');
   return `${base}/${materialHashPath(r)}`;
 }
 

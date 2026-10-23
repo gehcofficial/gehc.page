@@ -20,6 +20,7 @@ export function useActiveAccess() {
     isCommittee,
     isGroupMentor,
     isMentee,
+    isBodTimkerja,
   } = useApp();
 
   const [didaskaliaOfficer, setDidaskaliaOfficer] = useState(false);
@@ -49,6 +50,7 @@ export function useActiveAccess() {
     [roles, didaskaliaOfficer, didaskaliaTeam],
   );
 
+  const isBod = Boolean(isBodTimkerja);
   const isPriv = isSuperAdmin || isBpmj || isKomisi || isCommittee;
   const isBeyonder = isGroupMentor || isMentee;
   const pembekalanVis = materialVisibility('pembekalan', access);
@@ -60,6 +62,7 @@ export function useActiveAccess() {
 
   return {
     isPriv,
+    isBod,
     isMentor: isGroupMentor,
     isBeyonder,
     canView01,

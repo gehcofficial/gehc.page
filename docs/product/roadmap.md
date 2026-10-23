@@ -1,6 +1,6 @@
-﻿# Roadmap — GEHC Youth Ecosystem (gehc.page)
+﻿# Roadmap — GEHC.page (portal jemaat & unit BIPRA)
 
-Rencana pengembangan berdasarkan bukti di kode (badge tenant, dependensi terpasang, keterbatasan saat ini). Roadmap asli belum pernah didokumentasikan sebelumnya — dokumen ini menjadi baseline resmi pertama.
+Rencana pengembangan ekosistem **GEHC.page**: hub `gehc.page` (jemaat/BPMJ) + portal unit (`youth`, `men`, `women`, `teen`, `kids`, `districts`, `community`). Beyonders/Pemuda tetap produk utama di `youth.gehc.page`, tetapi arsitektur dan roadmap meliputi seluruh jemaat.
 
 ---
 
@@ -10,7 +10,7 @@ Rencana pengembangan berdasarkan bukti di kode (badge tenant, dependensi terpasa
 
 ---
 
-## Fase 0 — MVP Youth Portal ✅ *(saat ini)*
+## Fase 0 — MVP Youth Portal ✅ *(selesai — fondasi Beyonders)*
 
 - ✅ Situs publik 5 halaman: Home, Warta, Kegiatan, Kelompok, Struktur.
 - ✅ Portal administrasi 7 modul (Dashboard, Warta, Kegiatan, Monitoring, Struktur, RBAC, Integrasi).
@@ -147,8 +147,9 @@ Prioritas tertinggi agar aplikasi layak dipakai pengurus sungguhan:
 ## Fase 3 — Jangkauan Lebih Luas 📋
 
 15. **Komunitas & Rekreasional** 📋 — minat, bakat, musik, olahraga.
-16. **Wilayah & Kolom Teritorial 1–12** 📋 — pemetaan jemaat per wilayah Cikarang dengan domain `kolom.gehc.page`.
-17. **Notifikasi & komunikasi** 💡 — WhatsApp/email untuk follow-up idle & broadcast warta.
+16. **Portal unit BIPRA (F3.5)** 🚧 — `UnitPortalHome` + modul MVP (pengurus, anggota, kolom, BPMJ dasbor) ter-scope tenant; kurikulum SM / koinonia mendalam / kas unit menyusul.
+17. **Wilayah & Kolom Teritorial 1–12** 📋 — pemetaan jemaat per wilayah Cikarang dengan domain `kolom.gehc.page`.
+18. **Notifikasi & komunikasi** 💡 — WhatsApp/email untuk follow-up idle & broadcast warta.
     - WA-gateway follow-up idle (Fonnte/official API) — mentor & Komisi otomatis diberi tahu.
     - Pengingat ulang tahun anggota ke grup masing-masing (lihat item 23).
     - Digest mingguan per-role: warta untuk MENTEE, ringkasan grup untuk MENTOR, health-score untuk KOMISI/BPMJ.

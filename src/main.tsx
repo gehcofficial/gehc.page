@@ -10,6 +10,7 @@ import { resolvePortalId } from './lib/portal-profiles.ts';
 import { parseMentoringHash } from './lib/mentoring.ts';
 import { isDayScreenHash, parseLiturgyHash } from './lib/liturgy-live.ts';
 import { applyThemeForHost, initPortalTheme } from './lib/portal-themes.ts';
+import { applyDocumentMeta, documentMetaForPortal } from './lib/document-meta.ts';
 import { recoverBrokenClientCache } from './lib/pwa-install.ts';
 import { LoadingOverlay } from './components/public/ui/LoadingOverlay.tsx';
 import { initPwaNotificationNav } from './lib/pwa-notification-nav.ts';
@@ -61,6 +62,8 @@ const AppRoot: React.FC = () => {
     if (typeof window === 'undefined') return;
     applyThemeForHost(window.location.hostname, window.location.search);
     void initPortalTheme(window.location.hostname, window.location.search);
+    const portalId = resolvePortalId(window.location.hostname, window.location.search);
+    applyDocumentMeta(documentMetaForPortal(portalId));
   }, []);
 
   useEffect(() => {
