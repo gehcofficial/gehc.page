@@ -104,6 +104,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
   const [slugMiss, setSlugMiss] = useState(false);
   const [live, setLive] = useState<MentoringLivePayload | null>(null);
   const [busy, setBusy] = useState(false);
+  const [labReloadKey, setLabReloadKey] = useState(0);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [newItem, setNewItem] = useState({ topicCode: '', text: '', gospelNote: '' });
   const [newChip, setNewChip] = useState({ label: '', topicCode: '' });
@@ -331,6 +332,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error || 'Gagal mengubah status.');
       setMsg({ kind: 'ok', text: `Status: ${d.status}` });
+      if (action === 'reset') setLabReloadKey((k) => k + 1);
       await loadDetail();
       await loadLive();
     } catch (e) {
@@ -1060,7 +1062,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
           <fieldset disabled={!hasDraft || !canWrite} className={`min-w-0 border-0 p-0 m-0 space-y-4 ${(!hasDraft || !canWrite) ? 'opacity-70' : ''}`}>
           <div className={CARD}>
             {isCreativeLab ? (
-              <LabActivityProvider sessionId={detail.session.id}>
+              <LabActivityProvider sessionId={detail.session.id} reloadKey={labReloadKey}>
                 <MentoringLabControls
                   detail={detail}
                   live={live}

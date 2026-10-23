@@ -230,6 +230,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   /** Pin mundur ke tahap yang sudah terbuka (ala post-to-post); null = ikut alur server. */
   const [pinned, setPinned] = useState<string | null>(null);
   const [adminTeam, setAdminTeam] = useState<number | ''>('');
+  const resetSeen = useRef<string | null>(null);
   useEffect(() => { setPinned(null); setAdminTeam(''); }, [slug]);
 
   const sessionEtag = useRef({ etag: null as string | null, url: '' });
@@ -254,6 +255,14 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
       if (!r.ok) {
         setState({ status: 'error', message: d?.error || 'Gagal memuat.' });
         return true;
+      }
+      const resetAt = (d as MentoringSessionPayload & { resetAt?: string | null }).resetAt || null;
+      if (resetAt && resetSeen.current !== resetAt) {
+        resetSeen.current = resetAt;
+        setPicked([]);
+        setChipDone(false);
+        setNoteAffirm({});
+        setSaveError(null);
       }
       setData(d);
       setState({ status: 'ok' });
@@ -293,6 +302,9 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     : activityTotalSec * 1000;
   const activityExpired = Boolean(activityStartedAt) && activityRemainMs <= 0;
   const LAB_PHASE_LABEL: Record<string, string> = {
+    PRE: 'Menunggu Briefing',
+    BRIEFING: 'Briefing',
+    DRAW: 'Undian',
     IDLE: 'Briefing',
     A1: 'Sesi 1 · Reminder Jar',
     A2: 'Sesi 2 · Art Stations',
@@ -356,7 +368,7 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
   const activityExtra = useMemo(() => {
     if (c !== 'CREATIVE_LAB') return undefined;
     return {
-      activityPhase: data?.activity?.phase || 'IDLE',
+      activityPhase: data?.activity?.phase || 'PRE',
       presentIndex: Number(data?.activity?.presentIndex) || 0,
     };
   }, [c, data?.activity?.phase, data?.activity?.presentIndex]);

@@ -266,9 +266,10 @@ function slideForStation(a, station, photoKind) {
     : (str(a.stationMedia, 40) || str(a.title, 120) || `Aktivitas ${a.index}` || 'Stasiun A');
   const theme = isB ? str(a.stationBTheme, 120) : str(a.stationTheme, 120);
   const letter = isB ? 'B' : 'A';
+  const shortLabel = photoKind === 'POT' ? 'Pot' : photoKind === 'BAG' ? 'Bag' : `Slide Stasiun ${letter} · ${media}`;
   return {
     activityIndex: a.index,
-    label: `Slide Stasiun ${letter} · ${media}`,
+    label: shortLabel,
     media,
     theme,
     photoKind,
@@ -288,7 +289,7 @@ export function presentSlidePlan(brief) {
       const media = str(a.stationMedia, 40) || str(a.title, 120) || `Aktivitas ${a.index}`;
       slides.push({
         activityIndex: a.index,
-        label: `Slide Stasiun A · ${media}`,
+        label: media,
         media,
         theme: str(a.stationTheme, 120),
         photoKind: `ACT${a.index}`,
@@ -298,7 +299,7 @@ export function presentSlidePlan(brief) {
   }
   slides.push({
     activityIndex: 0,
-    label: 'Slide Bersama · Commitment',
+    label: 'Commitment',
     media: 'Commitment',
     theme: '',
     photoKind: 'COMMIT',
@@ -310,7 +311,7 @@ export function presentSlidePlan(brief) {
     slideForStation({ index: 2, stationBMedia: 'Stasiun B' }, 'B', 'BAG'),
     {
       activityIndex: 0,
-      label: 'Slide Bersama · Commitment',
+      label: 'Commitment',
       media: 'Commitment',
       theme: '',
       photoKind: 'COMMIT',

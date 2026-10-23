@@ -575,7 +575,7 @@ type LabTeamRow = {
 };
 
 type LabActivity = {
-  phase: 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+  phase: 'PRE' | 'BRIEFING' | 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
   startedAt: string | null;
   durationSec: number;
   showOnScreen: boolean;
@@ -648,7 +648,7 @@ const labEmptyTeam = (): LabTeamRow => ({
 });
 
 const labDefaultActivity = (): LabActivity => ({
-  phase: 'IDLE',
+  phase: 'PRE',
   startedAt: null,
   durationSec: 900,
   showOnScreen: true,
@@ -1007,22 +1007,36 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
   };
 
   const startDraw = () => {
-    void pushActivity(
-      { phase: 'DRAW', startedAt: new Date().toISOString(), durationSec: 300, presentStartedAt: null },
-      'Undian — tampilkan nomor grup di layar.',
-    );
+    drawOrder();
   };
 
   const startBriefing = () => {
+    if (labCtx) {
+      void labCtx.startBriefing();
+      return;
+    }
     void pushActivity(
-      { phase: 'IDLE', startedAt: new Date().toISOString(), durationSec: 900, presentStartedAt: null },
-      'Firman & Briefing 15 menit — 10 menit judul firman, 5 menit panggil perwakilan.',
+      { phase: 'BRIEFING', startedAt: new Date().toISOString(), durationSec: 900, presentStartedAt: null },
+      'Briefing — instruksi undian di layar.',
     );
   };
 
   const resetStage = () => {
+    if (labCtx) {
+      labCtx.resetStage();
+      return;
+    }
     void pushActivity(
-      { phase: 'DRAW', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
+      {
+        phase: 'PRE',
+        startedAt: null,
+        presentStartedAt: null,
+        cardIndex: 0,
+        presentIndex: 0,
+        presentSlide: 0,
+        presentOrder: [],
+        presentDrawnAt: null,
+      },
       'Timer & panggung direset.',
     );
   };

@@ -1,18 +1,21 @@
 import type { MentoringStatus } from './mentoring';
 import { resolvePatternCode } from './session-engine';
+import { canEnableLabRunnerKey, type LabGateActivity } from './lab-step-gate';
+
+export type LabStepContext = { activity?: LabGateActivity | null };
 
 export type DidaskaliaPhaseStep = {
   key: string;
   label: string;
   /** Tombol aktif bila true untuk status sesi saat ini. */
-  enabledWhen: (status: MentoringStatus) => boolean;
+  enabledWhen: (status: MentoringStatus, lab?: LabStepContext) => boolean;
 };
 
 const includes = (status: MentoringStatus, ...allowed: MentoringStatus[]) =>
   allowed.includes(status);
 
 export const CREATIVE_LAB_DAY_FLOW =
-  'Undian → Briefing → Sesi 1 (Reminder Jar 15′) → Sesi 2 (Art Stations 25′) → Presentasi Kelompok → kelompok berikutnya → Buka Satu Kata. Timer aktivitas display-only; transisi manual.';
+  'Briefing (instruksi + tombol Undian terpisah) → Sesi 1 (Reminder Jar 15′) → Sesi 2 (Art Stations 25′) → Presentasi Kelompok → Konklusi → Buka Satu Kata. Timer display-only; transisi manual berurutan.';
 
 export function monologPhaseSteps(prefMin: (key: string) => number): DidaskaliaPhaseStep[] {
   return [
@@ -36,13 +39,20 @@ export function filmPhaseSteps(): DidaskaliaPhaseStep[] {
 }
 
 export function creativeLabPhaseSteps(): DidaskaliaPhaseStep[] {
+  const labEnabled = (key: string) => (_s: MentoringStatus, lab?: LabStepContext) =>
+    canEnableLabRunnerKey(key, lab?.activity);
   return [
-    { key: 'DRAW', label: 'Undian', enabledWhen: () => true },
-    { key: 'BRIEFING', label: 'Briefing', enabledWhen: () => true },
-    { key: 'A1', label: 'Sesi 1', enabledWhen: () => true },
-    { key: 'A2', label: 'Sesi 2', enabledWhen: () => true },
-    { key: 'PRESENT', label: 'Presentasi', enabledWhen: () => true },
-    { key: 'WRAPUP', label: 'Buka Satu Kata', enabledWhen: (s) => s === 'RUNNING' || s === 'WRAPUP' },
+    { key: 'BRIEFING', label: 'Briefing', enabledWhen: labEnabled('BRIEFING') },
+    { key: 'DRAW', label: 'Undian', enabledWhen: labEnabled('DRAW') },
+    { key: 'A1', label: 'Sesi 1', enabledWhen: labEnabled('A1') },
+    { key: 'A2', label: 'Sesi 2', enabledWhen: labEnabled('A2') },
+    { key: 'PRESENT', label: 'Presentasi', enabledWhen: labEnabled('PRESENT') },
+    {
+      key: 'WRAPUP',
+      label: 'Buka Satu Kata',
+      enabledWhen: (s, lab) =>
+        (s === 'RUNNING' || s === 'WRAPUP') && canEnableLabRunnerKey('WRAPUP', lab?.activity),
+    },
   ];
 }
 

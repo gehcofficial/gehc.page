@@ -75,7 +75,7 @@ export function canonicalCreativeLabPhases(): LabPhase[] {
     {
       no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Pembicara Firman, MC', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: 'Firman 15 menit. Briefing mengumumkan pengundian urutan. Nama pencatat dan perwakilan tidak tampil di layar pada segmen ini; layar menampilkannya hanya di Sesi 2. T+10–T+25.',
+      notes: 'Layar judul tema sampai Briefing dimulai; lalu instruksi maju ke depan + slot urutan (nomor grup). Undian dari kontrol. Nama perwakilan hanya di Sesi 2, bukan Briefing/Presentasi. T+10–T+25.',
       segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
     },
     {
@@ -91,7 +91,7 @@ export function canonicalCreativeLabPhases(): LabPhase[] {
     {
       no: 5, title: 'Presentasi Kelompok', minutes: 30, owner: 'MC, Didaskalia', division: 'DIDASKALIA',
       anchor: 'ACARA',
-      notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Timer default 150 detik. T+65–T+95.',
+      notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Pot, Bag, Commitment. Timer default 150 detik. T+65–T+95.',
     },
     {
       no: 6, title: 'Konklusi', minutes: 10, owner: 'Pembicara Firman, Mentor', division: 'DIDASKALIA',
