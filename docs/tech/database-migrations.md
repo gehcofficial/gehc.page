@@ -48,6 +48,8 @@ npm run dev:all
 | `npm run db:migrate:staging` | Prisma deploy ke staging (**bukan** pengganti local) |
 | `npm run db:migrate:prod` | Prisma deploy ke produksi — **hanya dengan persetujuan eksplisit** |
 
+**Target prod vs staging:** Vercel Production memakai `DATABASE_URL_PRODUCTION` (`server/db.mjs`). Script `*:prod` untuk penatalayan BOD memuat `DATABASE_URL` dari `DATABASE_URL_PRODUCTION` → `DATABASE_URL_MAIN` → `DATABASE_URL_PRD` (`server/_production-database-url.cjs`) — **bukan** `DATABASE_URL` staging di `.env` lokal. Hostname/database `gehc` bisa sama; branch TiDB & kredensial prod **berbeda** dari staging.
+
 ---
 
 ## Urutan migrasi lokal (`db:migrate:local`)

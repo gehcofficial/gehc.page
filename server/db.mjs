@@ -41,7 +41,7 @@ function withPrismaParams(url) {
 export function resolveDatabaseUrl() {
   const target = envTarget();
   const staging = process.env.DATABASE_URL_STAGING || '';
-  const production = process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL_MAIN || '';
+  const production = process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL_MAIN || process.env.DATABASE_URL_PRD || '';
   const fallback = process.env.DATABASE_URL || '';
   const picked = target === 'production' ? (production || fallback) : (staging || fallback);
   return picked ? withPrismaParams(picked) : '';
