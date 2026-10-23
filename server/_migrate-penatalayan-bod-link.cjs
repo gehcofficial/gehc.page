@@ -3,6 +3,7 @@
  * Jalankan: npm run db:migrate:penatalayan-bod-link
  */
 require('dotenv').config();
+require('./_production-database-url.cjs');
 const mysql = require('mysql2/promise');
 
 const DDL_LINK = `CREATE TABLE IF NOT EXISTS \`penatalayan_bod_links\` (
