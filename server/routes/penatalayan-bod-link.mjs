@@ -7,7 +7,8 @@ import { requireRole } from '../auth.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
 import { resolveWorshipEventByDate } from '../lib/service-events.mjs';
 import { rolesForPattern, resolveRoleKey, buildResponsibleGroupCaption } from '../lib/serving-role-catalog.mjs';
-import { canManageBodLink, canFillBodLink, isDivisionHeadOf } from '../lib/penatalayan-bod-access.mjs';
+import { canManageBodLink, canFillBodLink, canAccessDivisionInbox } from '../lib/penatalayan-bod-access.mjs';
+import { listRequests } from '../lib/penatalayan-requests.mjs';
 import { buildSlotBoard, inferEventEndAt, progressFromSlots } from '../lib/penatalayan-bod-session.mjs';
 import {
   createRequestRow,
@@ -280,24 +281,21 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
 
   app.get(
     '/api/penatalayan/bod-links/division-inbox',
-    requireRole('SUPERADMIN', 'KOMISI', 'COMMITTEE'),
+    requireRole(),
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const division = String(req.query.division || '').toUpperCase();
       if (!division) return res.status(400).json({ error: 'division wajib.' });
-      const head = await isDivisionHeadOf(prisma, req.authUser?.id, division);
-      const manage = await canManageBodLink(req.authUser);
-      if (!head && !manage) return res.status(403).json({ error: 'Hanya HOD divisi atau BOD.' });
-      const rows = await prisma.$queryRawUnsafe(
-        `SELECT r.id, r.service_role_id AS serviceRoleId, r.date, r.status, r.note,
-                sr.name AS roleName, sr.division AS roleDivision
-         FROM service_role_requests r
-         JOIN service_roles sr ON sr.id = r.service_role_id
-         WHERE r.status = 'PENDING' AND sr.division = ?
-         ORDER BY r.date ASC LIMIT 80`,
+      if (!(await canAccessDivisionInbox(req.authUser, prisma, division))) {
+        return res.status(403).json({ error: 'Hanya koordinator penatalayan atau kepala divisi terkait.' });
+      }
+      const status = String(req.query.status || 'PENDING').toUpperCase();
+      const rows = await listRequests(prisma, {
         division,
-      ).catch(() => []);
+        status: status === 'ALL' ? 'ALL' : status,
+        limit: 80,
+      });
       res.json({ requests: rows });
     }),
   );
