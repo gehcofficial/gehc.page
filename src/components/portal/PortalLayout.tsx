@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { GehcLogo } from '../brand/GehcLogo';
 import { PortalDashboard } from './PortalDashboard';
@@ -9,6 +9,8 @@ import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { MentorPenatalayanUsulanPanel } from './MentorPenatalayanUsulanPanel';
 import { PenatalayanBodLinkPanel } from './PenatalayanBodLinkPanel';
+import { BodYouthPanel } from './BodYouthPanel';
+import { canAccessYouthBodPanel } from '../../lib/bod-panel-access';
 import { PastoralCareBoard } from './PastoralCareBoard';
 import { BeyondersLeadersPanel } from './BeyondersLeadersPanel';
 import { ManageStruktur } from './ManageStruktur';
@@ -132,6 +134,7 @@ export const PortalLayout: React.FC = () => {
     isGroupMentor,
     isMentee,
     isBodTimkerja,
+    isSuperAdmin,
     setActiveView,
     addToast,
     authUser,
@@ -148,6 +151,15 @@ export const PortalLayout: React.FC = () => {
   const portalTheme = usePortalTheme();
 
   const isOnboarding = authUser?.onboardingStatus === 'WAITING_POOL';
+
+  const canYouthBodPanel = useMemo(
+    () => canAccessYouthBodPanel({
+      portalId: portal.id,
+      isSuperAdmin: isSuperAdmin || currentRole === 'SUPERADMIN',
+      isBodTimkerja,
+    }),
+    [portal.id, isSuperAdmin, currentRole, isBodTimkerja],
+  );
 
   const portalRoute = parsePortalHash(typeof window !== 'undefined' ? window.location.hash : '');
   const isAccountRoute = portalRoute?.namespace === 'account';
@@ -269,6 +281,7 @@ export const PortalLayout: React.FC = () => {
     'groups-monitoring': Users,
     'penatalayan-usulan': ClipboardList,
     'penatalayan-tautan': ClipboardList,
+    'panel-bod': LayoutDashboard,
     'absensi-grup': ClipboardCheck,
     'beyonders-leaders': Crown,
     'pastoral-care': HeartHandshake,
@@ -336,6 +349,16 @@ export const PortalLayout: React.FC = () => {
   }));
 
   const isTabAllowed = (tabId: string) => navItems.some((item) => item.id === tabId);
+
+  useEffect(() => {
+    if (!canYouthBodPanel || portal.id !== 'youth') return;
+    if (activeTab !== 'penatalayan-tautan') return;
+    const token = String(parseHashSearch().get('token') || '').trim();
+    const ns = portalRoute?.namespace || roleToNamespace(currentRole);
+    const qs = token ? `?tab=penatalayan&token=${encodeURIComponent(token)}` : '?tab=penatalayan';
+    window.location.hash = `${buildPortalPath({ namespace: ns, page: 'panel-bod' }).slice(1)}${qs}`;
+    setActiveTab('panel-bod');
+  }, [activeTab, canYouthBodPanel, portal.id, portalRoute?.namespace, currentRole]);
 
   useEffect(() => {
     // Tunggu gating divisi/unit jemaat selesai dimuat agar deep-link tidak di-reset.
@@ -1133,6 +1156,15 @@ export const PortalLayout: React.FC = () => {
             <div className="space-y-4">
               <PenatalayanBodLinkPanel />
             </div>
+          )}
+          {activeTab === 'panel-bod' && (
+            canYouthBodPanel ? (
+              <div className="space-y-4">
+                <BodYouthPanel />
+              </div>
+            ) : (
+              <DivisionAccessDenied />
+            )
           )}
           {activeTab === 'absensi-grup' && (
             <div className="space-y-4">

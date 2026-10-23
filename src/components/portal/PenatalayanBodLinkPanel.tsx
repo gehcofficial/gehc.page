@@ -43,8 +43,13 @@ function tokenFromHash(): string {
   }
 }
 
-export const PenatalayanBodLinkPanel: React.FC = () => {
-  const token = useMemo(() => tokenFromHash(), []);
+type Props = {
+  /** Token dari Panel BOD (tanpa mengubah hash). */
+  tokenOverride?: string;
+};
+
+export const PenatalayanBodLinkPanel: React.FC<Props> = ({ tokenOverride }) => {
+  const token = useMemo(() => String(tokenOverride || '').trim() || tokenFromHash(), [tokenOverride]);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
