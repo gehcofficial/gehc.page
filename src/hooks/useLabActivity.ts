@@ -201,21 +201,39 @@ export function useLabActivity(sessionId: string | null) {
               : activity.phase === 'IDLE' && activity.startedAt ? 'Briefing'
                 : 'Belum mulai';
 
-  return {
-    activity,
-    busy,
-    note,
-    reload,
-    pushActivity,
-    startDraw,
-    startBriefing,
-    startPhase,
-    startPresent,
-    stopTimer,
-    resetStage,
-    extendActivityPhase,
-    remainingMs,
-    phaseLabel,
-    setActivity,
-  };
+  return useMemo(
+    () => ({
+      activity,
+      busy,
+      note,
+      reload,
+      pushActivity,
+      startDraw,
+      startBriefing,
+      startPhase,
+      startPresent,
+      stopTimer,
+      resetStage,
+      extendActivityPhase,
+      remainingMs,
+      phaseLabel,
+      setActivity,
+    }),
+    [
+      activity,
+      busy,
+      note,
+      reload,
+      pushActivity,
+      startDraw,
+      startBriefing,
+      startPhase,
+      startPresent,
+      stopTimer,
+      resetStage,
+      extendActivityPhase,
+      remainingMs,
+      phaseLabel,
+    ],
+  );
 }

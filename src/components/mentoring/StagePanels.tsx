@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
 import { BEYONDERS_GROUPS, LAB_PHOTO_CAP, LAB_PRESENT_SLIDES, LAB_STATION_CAP, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
@@ -705,19 +705,24 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
   const [participantsReady, setParticipantsReady] = useState(false);
   const [stations, setStations] = useState({ a: 'Pot', b: 'Tas' });
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
+  const loadedOnceRef = useRef(false);
+  const hasLabCtx = Boolean(labCtx);
+  const reloadLabActivity = labCtx?.reload;
   const now = useLabTick(Boolean(activity.startedAt || activity.presentStartedAt));
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const showSpinner = !loadedOnceRef.current;
+    if (showSpinner) setLoading(true);
     try {
       const cfg = await fetchStage(sessionId);
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
       setSavedTeamNames((list.length ? list : [labEmptyTeam()]).map((t: LabTeamRow) => t.name.trim()).join('|'));
-      if (!labCtx) {
+      if (!hasLabCtx) {
         setLocalActivity(parseLabActivity(cfg) as LabActivity);
-      } else {
-        await labCtx.reload();
+      } else if (reloadLabActivity) {
+        await reloadLabActivity();
       }
       setLab(cfg.lab && Array.isArray(cfg.lab.teams) ? cfg.lab as LabSummary : null);
       const a2 = cfg.draft?.['activity-2'] && typeof cfg.draft['activity-2'] === 'object' ? cfg.draft['activity-2'] : {};
@@ -735,9 +740,13 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal memuat.');
     } finally {
-      setLoading(false);
+      if (showSpinner) {
+        setLoading(false);
+        loadedOnceRef.current = true;
+        setLoadedOnce(true);
+      }
     }
-  }, [sessionId, setMsg, labCtx]);
+  }, [sessionId, setMsg, hasLabCtx, reloadLabActivity]);
 
   const loadParticipants = useCallback(async () => {
     try {
@@ -1093,7 +1102,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
         <p className="text-sm font-black">Creative Lab</p>
         <span className="ml-auto text-[11px] font-bold text-[#8C8880]">{phaseLabel}</span>
       </div>
-      {loading ? (
+      {loading && !loadedOnce ? (
         <p className="mt-2 text-[11px] text-[#8C8880] inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat…</p>
       ) : (
         <>

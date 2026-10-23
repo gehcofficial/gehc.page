@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useLabActivity } from '../hooks/useLabActivity';
 
 type LabActivityApi = ReturnType<typeof useLabActivity>;
@@ -10,7 +10,8 @@ export const LabActivityProvider: React.FC<{ sessionId: string; children: React.
   children,
 }) => {
   const api = useLabActivity(sessionId);
-  return <LabActivityContext.Provider value={api}>{children}</LabActivityContext.Provider>;
+  const value = useMemo(() => api, [api]);
+  return <LabActivityContext.Provider value={value}>{children}</LabActivityContext.Provider>;
 };
 
 export function useLabActivityContext(): LabActivityApi {
