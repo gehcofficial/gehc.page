@@ -1856,6 +1856,8 @@ model SalesShiftAssignment {
 model ServiceRole {
   id                String       @id @db.VarChar(64)
   name              String       @unique @db.VarChar(100)
+  /// Slug baku penatalayan (liturgos, mc, musician-keys, …).
+  roleKey           String?      @unique @map("role_key") @db.VarChar(48)
   division          String       @db.VarChar(20) // LITURGIA | DIDASKALIA | KOINONIA | DIAKONIA | MARTURIA | THL_STEWARDSHIP | THL_MDS
   /// P3: lingkup penatalayanan — UNIT (pemuda) atau CHURCH (jemaat/THL).
   scope             ServiceScope @default(UNIT)
@@ -3057,6 +3059,23 @@ model ServingWeekChannel {
 
   @@index([status, eventDate])
   @@map("serving_week_channels")
+}
+
+/// Satu tautan pengisian penatalayan per event (BOD Tim Kerja → mentor/divisi).
+model PenatalayanBodLink {
+  id                 String   @id @db.VarChar(64)
+  token              String   @unique @db.VarChar(64)
+  eventId            String   @unique @map("event_id") @db.VarChar(64)
+  serviceDate        DateTime @map("service_date") @db.Date
+  patternCode        String   @default("CREATIVE_LAB") @map("pattern_code") @db.VarChar(32)
+  hostGroupId        String?  @map("host_group_id") @db.VarChar(64)
+  responsibleGroupId String?  @map("responsible_group_id") @db.VarChar(64)
+  createdById        String   @map("created_by_id") @db.VarChar(64)
+  createdAt          DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([serviceDate])
+  @@map("penatalayan_bod_links")
 }
 
 // ---------- Sprint A: Marturia (Dokumentasi, Desain, Misi) ----------

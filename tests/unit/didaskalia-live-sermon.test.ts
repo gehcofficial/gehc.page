@@ -115,7 +115,9 @@ describe('usulan peran pola ibadah', () => {
   });
 
   it('musik opsional dan caption menyebut Liturgia serta tuan rumah', () => {
-    expect(WORSHIP_ORDER_ROLES.filter((r) => r.name === 'Pemusik')[0]?.optional).toBe(true);
+    const music = WORSHIP_ORDER_ROLES.filter((r) => String(r.roleKey || '').startsWith('musician-'));
+    expect(music.length).toBeGreaterThan(0);
+    expect(music.every((r) => r.optional)).toBe(true);
     expect(WORSHIP_ORDER_ROLES.map((r) => r.order)).toEqual(WORSHIP_ORDER_ROLES.map((_, i) => i + 1));
     const text = buildResponsibleGroupCaption({
       dateLabel: 'Minggu, 25 Oktober 2026',

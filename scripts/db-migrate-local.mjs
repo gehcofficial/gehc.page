@@ -411,6 +411,11 @@ const STEPS = [
     required: true,
   },
   {
+    script: 'server/_migrate-penatalayan-bod-link.cjs',
+    label: 'Penatalayan: role_key + tautan BOD (penatalayan_bod_links)',
+    required: true,
+  },
+  {
     script: 'server/_migrate-pelsus.cjs',
     label: 'Pelsus 18 Okt: elections, candidates, voters, ballots, kiosk tokens, audit',
     required: true,

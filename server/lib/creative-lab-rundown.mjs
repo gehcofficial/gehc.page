@@ -62,7 +62,7 @@ export function canonicalCreativeLabPhases() {
       segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
     },
     {
-      no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
+      no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Pembicara Firman, MC', division: 'DIDASKALIA',
       anchor: 'ACARA',
       notes: 'Firman 15 menit. Briefing mengumumkan pengundian urutan. Nama pencatat dan perwakilan tidak tampil di layar pada segmen ini; layar menampilkannya hanya di Sesi 2. T+10–T+25.',
       segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
@@ -83,12 +83,12 @@ export function canonicalCreativeLabPhases() {
       notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Timer default 150 detik. T+65–T+95.',
     },
     {
-      no: 6, title: 'Konklusi', minutes: 10, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',
+      no: 6, title: 'Konklusi', minutes: 10, owner: 'Pembicara Firman, Mentor', division: 'DIDASKALIA',
       anchor: 'ACARA',
       notes: 'Konklusi firman + chip Satu Kata + komitmen kelompok. Pemicu kontrol: DONE → refleksi/WRAPUP. T+95–T+105.',
     },
     {
-      no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+      no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Pembicara Firman, Doa Syafaat, Pengumpul Persembahan', division: 'LITURGIA',
       anchor: 'ACARA',
       notes: 'Kantong jalan + doa persembahan dan syafaat (mode HEMAT 10 menit). T+105–T+115.',
       segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],

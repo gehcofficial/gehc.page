@@ -14,7 +14,7 @@ describe('mergeDutiesByName', () => {
       duty('Holly Kalele', 'Pemimpin Liturgi', '13:00'),
       duty('Holly Kalele', 'Pemimpin Pujian', '13:00'),
     ]);
-    expect(out).toEqual([{ name: 'Holly Kalele', roles: ['Pemimpin Liturgi', 'Pemimpin Pujian'] }]);
+    expect(out).toEqual([{ name: 'Holly Kalele', roles: ['Liturgos', 'Pemimpin Pujian'] }]);
   });
 
   it('mempertahankan urutan kemunculan nama', () => {
@@ -25,7 +25,7 @@ describe('mergeDutiesByName', () => {
       duty('Aditya Wellem', 'Pemimpin Liturgi'),
     ]);
     expect(out.map((p) => p.name)).toEqual(['Chelsea Tjheuw', 'Holly Kalele', 'Aditya Wellem']);
-    expect(out[2].roles).toEqual(['Pemimpin Pujian', 'Pemimpin Liturgi']);
+    expect(out[2].roles).toEqual(['Pemimpin Pujian', 'Liturgos']);
   });
 
   it('tidak menggandakan role yang sama', () => {

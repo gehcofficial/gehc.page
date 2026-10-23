@@ -32,8 +32,8 @@ const POST_TO_POST_PLAYBOOK = `# Post-to-Post
 | No | Segmen | Menit | Owner | Naskah kunci |
 |---|---|---|---|---|
 | 1 | Praise & Worship | 10 | Liturgia | Buka dengan 2 lagu syukur yang mengarah ke {{tema}} |
-| 2 | Monolog | 15 | Main Speaker (Didaskalia) | Injil bukan sekadar tiket ke surga, tetapi solusi {{tema}} berdasar {{firman_ref}} |
-| 3 | Briefing | 2 | Main Speaker | Aturan main di catatan: total 20 menit; bebas pindah pos bila concern terjawab 5-6 menit |
+| 2 | Monolog | 15 | Pembicara Firman (Didaskalia) | Injil bukan sekadar tiket ke surga, tetapi solusi {{tema}} berdasar {{firman_ref}} |
+| 3 | Briefing | 2 | Pembicara Firman | Aturan main di catatan: total 20 menit; bebas pindah pos bila concern terjawab 5-6 menit |
 | 4 | Sesi 1 · Kunjungan Pos | 20 | PIC pos | 3 pos serentak (paralel). Jabarkan solusi teologis + praktis per Likert; buka tanya jawab; dorong catatan individu |
 | 5 | Wrap-up & Lesson Learned | 10 | MC | Kembali ke ruang utama; pilih Chip Words (maks 3); doa penutup |
 
@@ -50,7 +50,7 @@ Modul: likert, rooms, timer, notes, chips, wordcloud. Contoh config sesi:
 - Layar proyektor: #/mentoring/<slug>/layar (akses kode sesi). Kontrol: #/mentoring/<slug>/kontrol.
 
 ## 6. Peran & personil
-- Main Speaker (1, Didaskalia): monolog + briefing + wrap-up teologis.
+- Pembicara Firman (1, Didaskalia): monolog + briefing + wrap-up teologis.
 - PIC pos (3, mentor/co-mentor): kuasai data Likert posnya, jaga waktu 20 menit untuk banyak orang.
 - MC + operator timer/layar (1-2): hitung mundur, trigger wrapup.
 - Rasio mentor:mentee per pos maks 1:8. Gladi H-1: uji Likert → alokasi ruang → timer.
@@ -78,9 +78,9 @@ const DEBAT_PLAYBOOK = `# Debat — The Battle of Minds
 ## 3. Rundown
 | No | Segmen | Menit | Owner | Naskah kunci |
 |---|---|---|---|---|
-| 1 | Praise & Worship | 10 | Main Speaker | Doa + baca {{firman_ref}} + aturan emas |
+| 1 | Praise & Worship | 10 | Pembicara Firman | Doa + baca {{firman_ref}} + aturan emas |
 | 2 | Sesi 1 · Debat | 100 | Moderator | 5 ronde × 20 menit di catatan; template 11 slide (lihat Bagian 4) |
-| 3 | Konklusi | 20 | Main Speaker | Juri rekap, lalu Validasi → Trap Reveal di catatan → {{firman_ref}} → panggilan |
+| 3 | Konklusi | 20 | Pembicara Firman | Juri rekap, lalu Validasi → Trap Reveal di catatan → {{firman_ref}} → panggilan |
 | 4 | Persembahan & Doa | 10 | Liturgia | Kantong jalan + doa persembahan dan syafaat |
 | 5 | Lagu & Doa Penutup | 5 | Liturgia | 1 lagu + doa tutup + berkat |
 
@@ -96,7 +96,7 @@ Modul: rounds, timer, teams (rounds/teams tampil sebagai tabel statik + timer ma
 ## 6. Peran & personil
 - Moderator (1, Didaskalia): netral, tegas memotong mic tepat 00:00, hafal 11 slide.
 - Juri (2-3): nilai dengan lembar baku, tidak komentar sebelum konklusi.
-- Main Speaker konklusi (1): siapkan Trap Reveal + aplikasi {{tema}} 3 kalimat.
+- Pembicara Firman konklusi (1): siapkan Trap Reveal + aplikasi {{tema}} 3 kalimat.
 - Operator timer/buzzer/layar (1): uji buzzer H-1; siapkan cadangan stopwatch.
 - Peserta: tiap tim 3 orang; penonton boleh bersorak, tidak boleh meneriakkan argumen.
 
@@ -125,12 +125,12 @@ const BEDAH_FILM_PLAYBOOK = `# Bedah Film — Dropping the Filter
 |---|---|---|---|---|
 | 1 | Registrasi Ulang | 5 | Tuan Rumah, Penerima Tamu, Absensi | QR check-in ulang + sambut; masuk pool undian |
 | 2 | Doa Petugas | 5 | Tuan Rumah | Persiapan Ruang & Perlengkapan dan Cek Slide & Sound (paralel); konsumsi diedarkan sebelum lampu redup |
-| 3 | Praise & Worship | 5 | Pemimpin Pujian, Liturgi, Multimedia | 1 lagu + doa buka dalam 5 menit |
-| 4 | Firman & Briefing | 5 | Main Speaker, MC | Likert Awal di catatan + sinopsis tanpa spoiler + jembatan ke {{tema}} (M0) |
-| 5 | Sesi 1 · Movie Breakdown | 90 | Main Speaker, Multimedia | Durasi film di catatan (baku 90). Layar mode tenang; HP boleh untuk 3 Q; konsumsi (paralel) (M1) |
+| 3 | Praise & Worship | 5 | Pemimpin Pujian, Liturgos, Operator Multimedia | 1 lagu + doa buka dalam 5 menit |
+| 4 | Firman & Briefing | 5 | Pembicara Firman, MC | Likert Awal di catatan + sinopsis tanpa spoiler + jembatan ke {{tema}} (M0) |
+| 5 | Sesi 1 · Movie Breakdown | 90 | Pembicara Firman, Multimedia | Durasi film di catatan (baku 90). Layar mode tenang; HP boleh untuk 3 Q; konsumsi (paralel) (M1) |
 | 6 | Konklusi | 15 | MC, Mentor, 2 terundi | Likert Akhir, chip Lesson Learned, dan 2 kesaksian di catatan (M3 → M4) |
-| 7 | Persembahan & Doa | 10 | Main Speaker, Pendoa, Pengumpul | Kantong jalan + doa persembahan dan syafaat |
-| 8 | Lagu & Doa Penutup | 5 | Liturgia, Pendoa | 1 lagu + doa tutup + berkat |
+| 7 | Persembahan & Doa | 10 | Pembicara Firman, Doa Syafaat, Pengumpul Persembahan | Kantong jalan + doa persembahan dan syafaat |
+| 8 | Lagu & Doa Penutup | 5 | Liturgos, Doa Syafaat | 1 lagu + doa tutup + berkat |
 | 9 | Terima Kasih & Pengumuman | 5 | Tuan Rumah, MC, Komisi/Tim Kerja | Apresiasi tuan rumah + info komisi |
 | 10 | HUT & Doa | 5 | MC, yang HUT | Rayakan dan doakan yang berulang tahun |
 | 11 | Foto Bersama | 5 | Fotografer, Videografer | Foto session + dokumentasi |
@@ -152,7 +152,7 @@ const BEDAH_FILM_PLAYBOOK = `# Bedah Film — Dropping the Filter
 Modul: screening, timer, notes, testimony, likert, chips, wordcloud. Config sesi: {filmJudul, durasiDetik (arsip saja, tanpa countdown), likertRounds:{pre:'open'|'closed', post:'open'|'closed'}, 3 catatan film (Q1-Q3 + afirmasi per jawaban), afirmasi Likert (rendah/tinggi), chipLimit: 3}. Likert = 10 item (5 FILM_PRE + 5 FILM_POST, teks sama, PRE tanpa spoiler); delta pre→post = rata-rata POST − PRE per item, tampil di layar + PDF + CSV. Gates kontrol: M0 (buka AWAL, timer 5') → M1 (mulai film + kunci AWAL, tanpa timer, layar mode tenang) → M3 (buka AKHIR + Lesson Learned serentak, tampil delta) → M4 (undi 2 + kesaksian). Notes: 3 Q selama film + afirmasi per jawaban + komitmen (autosave, unduh PDF, ekspor CSV). Undi: 1 Mentee + 1 Mentor (fallback bebas); nama + grup + hasil Lesson Learned tampil gabungan di layar.
 
 ## 6. Peran & personil
-- Main Speaker (1): pengantar transisi + penanggung jawab isi film, kuasai paralel film ↔ {{firman_ref}}.
+- Pembicara Firman (1): pengantar transisi + penanggung jawab isi film, kuasai paralel film ↔ {{firman_ref}}.
 - Multimedia + Tata Suara (1-2): proyektor, sound, subtitle, layar mode tenang (tanpa countdown), cadangan laptop + kabel HDMI + hotspot.
 - MC (1): Likert AWAL/AKHIR + Lesson Learned + undian, jaga waktu tiap blok.
 - Mentor (1 per 8): pimpin L1, mulai duluan, jangan menghakimi.
@@ -176,18 +176,18 @@ const THREE_SEQUENCES_PLAYBOOK = `# The 3 Sequences (Coram Deo Challenge)
 ## 2. Pra-acara (H-7 s/d H-1)
 1. Siapkan snack Rp5.000 per orang + 2 amplop studi kasus dari {{tema}} + puzzle ayat {{firman_ref}} + yel-yel + template video CapCut + 2 HP cadangan.
 2. Bentuk 2 kelompok besar (contoh 8+8=16): Subteam 1 (11 orang, Lantai 2) + Subteam 2 (5 orang, Lantai 1). Tunjuk The Runner (1, cepat + hafal) dan The Validator (1, teliti).
-3. Uji rute lari Lantai 2 → Lantai 1 + bisikan 1x + validasi ke Main Speaker. Siapkan hadiah amplop + countdown layar 30 menit.
+3. Uji rute lari Lantai 2 → Lantai 1 + bisikan 1x + validasi ke Pembicara Firman. Siapkan hadiah amplop + countdown layar 30 menit.
 4. Susun 5 tim gabungan dari 10 kelompok mentoring (default 1+2, 3+4, …: Agape & Avodah, Dunamis & Echad, Hesed & Kairos, Logos & Metanoia, Ruach & Shalom). Admin boleh mengubah pasangan di kontrol; papan lama tidak ditimpa otomatis. Tiap tim menjalankan seluruh misi. Peran Soal, Lapangan, Narasi, Presentasi, dan Editor hanya saran di dalam tim. Minta izin lokasi wawancara warga non-GEHC.
 
 ## 3. Rundown
 | No | Segmen | Menit | Owner | Naskah kunci |
 |---|---|---|---|---|
-| 1 | Praise & Worship | 10 | Main Speaker | Doa + {{firman_ref}} di catatan + aturan tanpa jeda |
-| 2 | Sesi 1 · Snack & Merge | 10 | Main Speaker | Tukar snack 3 menit + yel-yel misi 7 menit |
+| 1 | Praise & Worship | 10 | Pembicara Firman | Doa + {{firman_ref}} di catatan + aturan tanpa jeda |
+| 2 | Sesi 1 · Snack & Merge | 10 | Pembicara Firman | Tukar snack 3 menit + yel-yel misi 7 menit |
 | 3 | Sesi 2 · Kode Alkitab | 15 | Mentor | Sandi → pass message → Runner → puzzle → Validator |
 | 4 | Sesi 3 · Mission Room | 30 | Tim gabungan | Countdown layar; 5 tim gabungan, masing-masing seluruh misi |
 | 5 | Presentasi Kelompok | 20 | MC | Maks 4 menit per tim gabungan |
-| 6 | Konklusi | 10 | Main Speaker | Firman penutup {{tema}} + {{firman_ref}} |
+| 6 | Konklusi | 10 | Pembicara Firman | Firman penutup {{tema}} + {{firman_ref}} |
 | 7 | Penutup Sesi · Commissioning & Deklarasi | 10 | Mentor | Penumpangan tangan, doa personal, deklarasi Coram Deo |
 | 8 | Persembahan & Doa | 10 | Liturgia | Kantong jalan + doa persembahan dan syafaat |
 | 9 | Lagu & Doa Penutup | 5 | Liturgia | 1 lagu + doa tutup + berkat |
@@ -207,7 +207,7 @@ const THREE_SEQUENCES_PLAYBOOK = `# The 3 Sequences (Coram Deo Challenge)
 Modul: teams, timer, notes. Config sesi: {kelompokBesar, subteam, runner, validator, amplopStudiKasus:[2], teams:[{name, pair:[kelompokA, kelompokB], roles, task, members, done}], countdownDetik:1800}. timMissionRoom bukan lagi struktur tim. Timer layar untuk Sesi 3. Notes: laporan per tim gabungan + ekspor CSV (satu baris per tim: Tim, Pasangan, PeranDiDalamTim, Tugas, Selesai, Laporan, Komitmen). Tombol kontrol **Pasangan default** mengisi 5 pasangan; tidak menimpa papan yang sudah tersimpan sampai disimpan.
 
 ## 6. Peran & personil
-- Main Speaker (1): komando 3 sequence, validasi puzzle, firman penutup di Konklusi.
+- Pembicara Firman (1): komando 3 sequence, validasi puzzle, firman penutup di Konklusi.
 - Mentor lantai (2): dampingi Subteam 1 & 2, jaga keamanan rute lari.
 - Runner + Validator (2): latih khusus H-1 (hafalan + ketelitian).
 - 5 tim gabungan (contoh 16 orang): tiap tim pegang seluruh misi; peran internal hanya pembagian tugas.
@@ -228,10 +228,10 @@ const MONOLOG_PLAYBOOK = `# Monologue & Dialogue — 60 menit inti, 125 menit ib
 Pola default bila pekan tidak memilih pola khusus. Cakupan: Koinonia di luar ibadah, Liturgia di luar firman, Didaskalia dari Bedah Lagu sampai Closing, Marturia dokumentasi.
 
 ## 2. Pra-acara (H-7 s/d H-1)
-1. Main Speaker siapkan monolog 15-20 menit dari {{firman_ref}} (teks, konteks, 2-3 poin, aplikasi {{tema}}, panggilan).
+1. Pembicara Firman siapkan monolog 15-20 menit dari {{firman_ref}} (teks, konteks, 2-3 poin, aplikasi {{tema}}, panggilan).
 2. Didaskalia tetapkan lagu bedah pekan ini (judul + makna tiap bait + penyanyi) + siapkan 5 pertanyaan web: 3 FGD observasi-interpretasi-aplikasi + 2 deep sharing cermin-diri dan langkah-pulang + 8-10 chip Lesson Learned dari {{firman_ref}}.
 3. Settlement kelompok mentoring: tetapkan Mentor dan Co-mentor tiap kelompok 5-8 orang; siapkan ruang diskusi.
-4. Settlement penatalayan: tetapkan Main Speaker, MC, Liturgia, Multimedia, Tuan Rumah, Pengumpul kantong, dan Fotografer dari jadwal pekan berjalan.
+4. Settlement penatalayan: tetapkan Pembicara Firman, MC, Liturgia, Multimedia, Tuan Rumah, Pengumpul kantong, dan Fotografer dari jadwal pekan berjalan.
 5. Uji sound, lirik, proyektor, kode sesi proyektor, dan QR check-in.
 
 ## 3. Rundown
@@ -239,13 +239,13 @@ Pola default bila pekan tidak memilih pola khusus. Cakupan: Koinonia di luar iba
 |---|---|---|---|---|
 | 1 | Doa Petugas (PRA, T-15→T-10) | 5 | Komisi/Tim Kerja, Tuan Rumah | Persiapan Ruang & Perlengkapan dan Cek Slide & Sound (paralel); tak tambah total |
 | 2 | Registrasi Ulang (PRA, T-10→T0) | 10 | Tuan Rumah, Penerima Tamu, Absensi | QR check-in ulang + sambut; yang hadir masuk pool undian |
-| 3 | Praise & Worship (T0→T+15) | 15 | Pemimpin Pujian, Liturgi, Multimedia | Varian pembuka per pekan: DOA / LAGU / KEDUANYA (default); total tetap 15 |
-| 4 | Sesi 1 · Bedah Lagu | 20 | Main Speaker, Liturgia, Pembaca Firman | Monolog + Q1–Q3 di catatan; satu lagu dibedah per bait. Kunci fase F1 (T1) |
+| 3 | Praise & Worship (T0→T+15) | 15 | Pemimpin Pujian, Liturgos, Operator Multimedia | Varian pembuka per pekan: DOA / LAGU / KEDUANYA (default); total tetap 15 |
+| 4 | Sesi 1 · Bedah Lagu | 20 | Pembicara Firman, Liturgos, Pembaca Firman | Monolog + Q1–Q3 di catatan; satu lagu dibedah per bait. Kunci fase F1 (T1) |
 | 5 | Sesi 2 · Deep Sharing | 25 | Mentor, Co-mentor/Pemicu, Mentee | Q4–Q5 di catatan; 3 FGD + 2 deep sharing. Kunci fase F2 (T2) |
 | 6 | Sesi 3 · Kesaksian | 10 | MC, Mentor, 3 terundi | Chip Lesson Learned (maks 3); undi bebas 3 bersaksi live + word cloud. Kunci fase F3 (T3) |
-| 7 | Konklusi | 5 | Main Speaker, Mentor | Rekap + unduh PDF + terima kasih. Kunci fase CLOSING (T4) |
-| 8 | Persembahan & Doa | 10 (PENUH 16) | Main Speaker, Pendoa, Pengumpul | Kantong jalan + doa persembahan dan syafaat. PENUH (+6): lagu selingan di blok ini |
-| 9 | Lagu & Doa Penutup | 5 | Liturgia, Pendoa | 1 lagu + doa tutup + berkat |
+| 7 | Konklusi | 5 | Pembicara Firman, Mentor | Rekap + unduh PDF + terima kasih. Kunci fase CLOSING (T4) |
+| 8 | Persembahan & Doa | 10 (PENUH 16) | Pembicara Firman, Doa Syafaat, Pengumpul Persembahan | Kantong jalan + doa persembahan dan syafaat. PENUH (+6): lagu selingan di blok ini |
+| 9 | Lagu & Doa Penutup | 5 | Liturgos, Doa Syafaat | 1 lagu + doa tutup + berkat |
 | 10 | Terima Kasih & Pengumuman | 5 | Tuan Rumah, MC, Komisi/Tim Kerja | Apresiasi tuan rumah + info komisi; konsumsi (paralel) |
 | 11 | HUT & Doa | 5 | MC, yang HUT | Rayakan dan doakan yang berulang tahun |
 | 12 | Foto Bersama | 5 | Fotografer, Videografer | Foto session + dokumentasi |
@@ -264,7 +264,7 @@ Pola default bila pekan tidak memilih pola khusus. Cakupan: Koinonia di luar iba
 Modul: timer, notes, fgd, testimony, chips, wordcloud. Judul rundown: Sesi 1 · Bedah Lagu, Sesi 2 · Deep Sharing, Sesi 3 · Kesaksian, Konklusi. Kunci fase web tetap F1 20 menit, F2 25 menit, F3 10 menit, CLOSING 5 menit — tiap tombol kontrol langsung menjalankan countdown fasenya; habis waktu menunggu operator, tidak auto-lanjut. Trigger Q: T1 membuka Q1-Q3, T2 membuka Q4-Q5. Undian: bebas 3 orang tanpa ulang (nama dan grup tampil di layar). Chip: pilih maksimal 3 per peserta, agregat word cloud. Notes: Q1-Q5 plus Komitmen per anggota (autosave, unduh PDF, ekspor CSV untuk follow-up mentor).
 
 ## 6. Peran & personil
-- Main Speaker (1, settlement penatalayan): monolog 15-20 menit, persembahan dan doa, closing.
+- Pembicara Firman (1, settlement penatalayan): monolog 15-20 menit, persembahan dan doa, closing.
 - Liturgia (2-3): pujian, liturgi, lirik dan bedah lagu.
 - Mentor dan Co-mentor (1 per 5-8 jemaat): fasilitasi F2, pastikan semua bersuara, buka diri dulu maksimal 2 menit.
 - MC (1): transisi, undian kesaksian, HUT.
@@ -328,7 +328,7 @@ const CREATIVE_LAB_PLAYBOOK = `# Creative Lab — Serving Day
 Modul: teams, timer, notes, chips, wordcloud, lab updates. Panel kontrol hari-H: papan 10 kelompok baku lewat tombol "Muat 10 kelompok", timer Sesi 1 15' (kunci A1), Sesi 2 25' (kunci A2), Presentasi Kelompok default 150 detik/kelompok (blok 30' termasuk transisi), navigator 6 kartu jar, undian urutan, status laporan/foto, dan unduh CSV (header Stasiun A/B memakai nama media). Timer display-only; transisi manual. Peserta menulis 6 kartu dan memilih 2 untuk web (paralel). Kunci foto tetap POT (Stasiun A), BAG (Stasiun B), GROUP (Foto Bersama). Sesi yang sudah menyimpan presentSeconds 120 tidak diubah. Foto masuk ke folder event "<event> [EV:<slug>:DIDASKALIA]". Folder bertag tidak pernah di-rename atau dipindah. Contoh config: activity {phase:A1|A2|PRESENT|DONE, durations:{A1:900,A2:1500,PRESENT:150}}. Tabel worship_lab_updates (tanpa migrasi baru).
 
 ## 6. Peran & personil
-- Main Speaker (1, Didaskalia): khotbah 15 menit, umumkan pencatat dan pengundian, konklusi.
+- Pembicara Firman (1, Didaskalia): khotbah 15 menit, umumkan pencatat dan pengundian, konklusi.
 - MC (1): transisi, Presentasi Kelompok, menjaga sekitar 2,5 menit per kelompok di dalam blok 30 menit.
 - Mentor/Co-mentor (1 per kelompok 5-8 orang): koordinator kelompok, fasilitasi jar dan diskusi karya.
 - Perwakilan kelompok (1 per kelompok): melapor ke Admin, mengisi makna/progress/komitmen, dan mengunggah 5 foto karya.
@@ -365,7 +365,7 @@ const PATTERNS = [
         notes: 'Cek kebersihan, kursi, konsumsi, toilet (paralel). Tak tambah total.',
       },
       {
-        no: null, title: 'Cek Slide & Sound', minutes: 5, owner: 'Multimedia, Tata Suara', division: 'MARTURIA',
+        no: null, title: 'Cek Slide & Sound', minutes: 5, owner: 'Operator Multimedia, Operator Tata Suara', division: 'MARTURIA',
         anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
         notes: 'Slide, lirik, proyektor, sound standby sebelum T0 (paralel). Tak tambah total.',
       },
@@ -375,7 +375,7 @@ const PATTERNS = [
         notes: 'QR check-in ulang + sambut (T-10→T0); yang hadir masuk pool undian.',
       },
       {
-        no: 3, title: 'Praise & Worship', minutes: 15, owner: 'Pemimpin Pujian, Liturgi, Multimedia', division: 'LITURGIA',
+        no: 3, title: 'Praise & Worship', minutes: 15, owner: 'Pemimpin Pujian, Liturgos, Operator Multimedia', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: 'Varian pembuka (pilih per pekan): DOA = doa buka 3 mnt; LAGU = 1 lagu buka; KEDUANYA (default) = doa 2 mnt + 1 lagu buka + praise/worship. Total tetap 15 mnt (kurangi 1 praise bila perlu).',
         segments: [
@@ -384,7 +384,7 @@ const PATTERNS = [
         ],
       },
       {
-        no: 4, title: 'Sesi 1 · Bedah Lagu', minutes: 20, owner: 'Main Speaker, Liturgia, Pembaca Firman', division: 'DIDASKALIA',
+        no: 4, title: 'Sesi 1 · Bedah Lagu', minutes: 20, owner: 'Pembicara Firman, Liturgos, Pembaca Firman', division: 'DIDASKALIA',
         notes: 'Satu lagu dibedah per bait (makna + penyanyi) dalam terang tema pekan + monolog: eksposisi Firman pekan → aplikasi tema pekan → panggilan; umumkan pemicu tiap kelompok; Q1–Q3 terbuka di HP tanpa countdown. Kunci fase tetap F1. Pemicu: tombol kontrol T1.',
         segments: [
           { key: 'bedah-lagu', label: 'Bedah Lagu', kind: 'song', songs: 1 },
@@ -400,17 +400,17 @@ const PATTERNS = [
         notes: 'Tiap peserta tulis chip Lesson Learned (maks 3) di web; undi bebas 3 bersaksi live (nama + grup di layar) + word cloud. Pemicu: tombol kontrol T3.',
       },
       {
-        no: 7, title: 'Konklusi', minutes: 5, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',
+        no: 7, title: 'Konklusi', minutes: 5, owner: 'Pembicara Firman, Mentor', division: 'DIDASKALIA',
         notes: 'Rekap + unduh PDF + terima kasih. Pemicu: tombol kontrol T4.',
       },
       {
-        no: 8, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+        no: 8, title: 'Persembahan & Doa', minutes: 10, owner: 'Pembicara Firman, Doa Syafaat, Pengumpul Persembahan', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: 'Kantong jalan + doa persembahan dan syafaat. Mode PENUH menambah 6 menit di blok ini (lagu selingan). Doa tutup ada di Lagu & Doa Penutup.',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 2 }],
       },
       {
-        no: 9, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
+        no: 9, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgos, Doa Syafaat', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu + doa tutup + berkat.',
       },
@@ -444,16 +444,16 @@ const PATTERNS = [
     modules: ['likert', 'rooms', 'timer', 'notes', 'chips', 'wordcloud'],
     phases: [
       {
-        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Liturgia', division: 'LITURGIA',
+        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Liturgos', division: 'LITURGIA',
         notes: 'Buka dengan 2 lagu syukur yang mengarah ke tema.',
         segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
       },
       {
-        no: 2, title: 'Monolog', minutes: 15, owner: 'Main Speaker (Didaskalia)', division: 'DIDASKALIA',
+        no: 2, title: 'Monolog', minutes: 15, owner: 'Pembicara Firman (Didaskalia)', division: 'DIDASKALIA',
         notes: 'Injil sebagai solusi praktis pergumulan Hubungan/Pekerjaan/Keluarga.',
         segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
       },
-      { no: 3, title: 'Briefing', minutes: 2, owner: 'Main Speaker', division: 'DIDASKALIA', notes: 'Aturan main: total 20 menit; bebas pindah pos bila concern terjawab 5-6 menit.' },
+      { no: 3, title: 'Briefing', minutes: 2, owner: 'Pembicara Firman', division: 'DIDASKALIA', notes: 'Aturan main: total 20 menit; bebas pindah pos bila concern terjawab 5-6 menit.' },
       { no: 4, title: 'Sesi 1 · Kunjungan Pos', minutes: 20, owner: 'PIC pos', division: 'DIDASKALIA', notes: '3 pos serentak (paralel). Solusi teologis + praktis per Likert; tanya jawab; catatan individu.' },
       { no: 5, title: 'Wrap-up & Lesson Learned', minutes: 10, owner: 'MC', division: 'DIDASKALIA', notes: 'Kembali ke ruang utama; pilih chip words maks 3; doa penutup.' },
     ],
@@ -468,7 +468,7 @@ const PATTERNS = [
     modules: ['rounds', 'timer', 'teams'],
     phases: [
       {
-        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Main Speaker', division: 'LITURGIA',
+        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Pembicara Firman', division: 'LITURGIA',
         notes: 'Doa + baca firman pekan + bacakan aturan emas.',
         segments: [
           { key: 'pembuka', label: 'Pembuka', kind: 'song', songs: 1 },
@@ -477,17 +477,17 @@ const PATTERNS = [
       },
       { no: 2, title: 'Sesi 1 · Debat', minutes: 100, owner: 'Moderator', division: 'DIDASKALIA', notes: '5 ronde × 20 menit, 11 slide per ronde; sanggahan kedua utamakan Mentee.' },
       {
-        no: 3, title: 'Konklusi', minutes: 20, owner: 'Main Speaker', division: 'DIDASKALIA',
+        no: 3, title: 'Konklusi', minutes: 20, owner: 'Pembicara Firman', division: 'DIDASKALIA',
         notes: 'Juri rekap skor, lalu validasi dan Trap Reveal: dikotomi palsu, panggilan dari firman pekan.',
       },
       {
-        no: 4, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+        no: 4, title: 'Persembahan & Doa', minutes: 10, owner: 'Pembicara Firman, Doa Syafaat, Pengumpul Persembahan', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: 'Kantong jalan + doa persembahan dan syafaat.',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
       },
       {
-        no: 5, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
+        no: 5, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgos, Doa Syafaat', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu + doa tutup + berkat.',
       },
@@ -513,18 +513,18 @@ const PATTERNS = [
         notes: 'Persiapan Ruang & Perlengkapan dan Cek Slide & Sound (paralel) di blok yang sama: standby kru, proyektor/sound/subtitle, matras/konsumsi diedarkan sebelum lampu redup. Tak tambah total.',
       },
       {
-        no: 3, title: 'Praise & Worship', minutes: 5, owner: 'Pemimpin Pujian, Liturgi, Multimedia', division: 'LITURGIA',
+        no: 3, title: 'Praise & Worship', minutes: 5, owner: 'Pemimpin Pujian, Liturgos, Operator Multimedia', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu + doa buka dalam 5 mnt.',
         segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 1 }],
       },
       {
-        no: 4, title: 'Firman & Briefing', minutes: 5, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
+        no: 4, title: 'Firman & Briefing', minutes: 5, owner: 'Pembicara Firman, MC', division: 'DIDASKALIA',
         anchor: 'ACARA',
         notes: 'Likert Awal. Sinopsis tanpa spoiler + jembatan ke {{tema}} + infokan isi 3 catatan (Q1–Q3) selama film nanti. Pemicu: tombol kontrol M0 (timer 5 menit).',
       },
       {
-        no: 5, title: 'Sesi 1 · Movie Breakdown', minutes: 90, owner: 'Main Speaker, Multimedia', division: 'DIDASKALIA',
+        no: 5, title: 'Sesi 1 · Movie Breakdown', minutes: 90, owner: 'Pembicara Firman, Multimedia', division: 'DIDASKALIA',
         anchor: 'ACARA',
         notes: 'Durasi mengikuti film (baku 90 menit). Layar mode tenang tanpa countdown; lampu redup; HP tetap boleh untuk jawab 3 Q + afirmasi firman per jawaban; konsumsi (paralel). Pemicu: tombol kontrol M1.',
       },
@@ -534,13 +534,13 @@ const PATTERNS = [
         notes: 'Likert Akhir (5 item yang sama), chip Lesson Learned maks 3 (terbuka serentak via M3), dan 2 kesaksian (undi 1 Mentee + 1 Mentor, M4). Nama + grup + hasil Lesson Learned tampil gabungan di layar. Kunci kontrol tetap M0/M1/M3/M4.',
       },
       {
-        no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+        no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Pembicara Firman, Doa Syafaat, Pengumpul Persembahan', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: 'Kantong jalan + doa persembahan dan syafaat.',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
       },
       {
-        no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
+        no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgos, Doa Syafaat', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu + doa tutup + berkat.',
       },
@@ -571,19 +571,19 @@ const PATTERNS = [
     modules: ['teams', 'timer', 'notes'],
     phases: [
       {
-        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Main Speaker',
+        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Pembicara Firman',
         notes: 'Doa + firman pekan + aturan tanpa jeda. Firman ada di segmen, bukan di judul.',
         segments: [
           { key: 'pembuka', label: 'Pembuka', kind: 'song', songs: 1 },
           { key: 'firman', label: 'Firman', kind: 'firman', auto: true },
         ],
       },
-      { no: 2, title: 'Sesi 1 · Snack & Merge', minutes: 10, owner: 'Main Speaker', notes: 'Tukar snack 3 menit + yel-yel misi 7 menit serentak.' },
+      { no: 2, title: 'Sesi 1 · Snack & Merge', minutes: 10, owner: 'Pembicara Firman', notes: 'Tukar snack 3 menit + yel-yel misi 7 menit serentak.' },
       { no: 3, title: 'Sesi 2 · Kode Alkitab', minutes: 15, owner: 'Mentor', notes: 'Sandi, pass message, Runner, puzzle, Validator.' },
       { no: 4, title: 'Sesi 3 · Mission Room', minutes: 30, owner: 'Tim', notes: '5 tim gabungan (2 kelompok mentoring per tim) menjalankan seluruh misi. Peran Soal, Lapangan, Narasi, Presentasi, dan Editor hanya saran di dalam tiap tim (paralel), bukan tim terpisah. Countdown layar.' },
       { no: 5, title: 'Presentasi Kelompok', minutes: 20, owner: 'MC', notes: 'Maks 4 menit per tim gabungan + 1 apresiasi. Lima tim gabungan.' },
       {
-        no: 6, title: 'Konklusi', minutes: 10, owner: 'Main Speaker', division: 'DIDASKALIA',
+        no: 6, title: 'Konklusi', minutes: 10, owner: 'Pembicara Firman', division: 'DIDASKALIA',
         anchor: 'ACARA',
         notes: 'Firman penutup dari tema dan firman pekan.',
         segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
@@ -594,13 +594,13 @@ const PATTERNS = [
         notes: 'Penumpangan tangan, doa personal, dan deklarasi Coram Deo.',
       },
       {
-        no: 8, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+        no: 8, title: 'Persembahan & Doa', minutes: 10, owner: 'Pembicara Firman, Doa Syafaat, Pengumpul Persembahan', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: 'Kantong jalan + doa persembahan dan syafaat.',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
       },
       {
-        no: 9, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
+        no: 9, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgos, Doa Syafaat', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu + doa tutup + berkat.',
       },
@@ -632,18 +632,18 @@ const PATTERNS = [
         notes: 'QR check-in ulang; peserta langsung diarahkan ke kelompoknya (paralel). Bahan aktivitas sudah diterima mentor/co-mentor saat kedatangan. Tak tambah total.',
       },
       {
-        no: null, title: 'Cek Slide & Sound', minutes: 10, owner: 'Multimedia, Tata Suara', division: 'MARTURIA',
+        no: null, title: 'Cek Slide & Sound', minutes: 10, owner: 'Operator Multimedia, Operator Tata Suara', division: 'MARTURIA',
         anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
         notes: 'Slide contoh karya, timer layar, sound, kode sesi proyektor (paralel). Tak tambah total.',
       },
       {
-        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Pemimpin Pujian, Liturgi, Multimedia', division: 'LITURGIA',
+        no: 1, title: 'Praise & Worship', minutes: 10, owner: 'Pemimpin Pujian, Liturgos, Operator Multimedia', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu buka + doa + praise/worship. Peserta sudah duduk per kelompok sejak awal. T0–T+10.',
         segments: [{ key: 'praise', label: 'Praise', kind: 'song', songs: 2 }],
       },
       {
-        no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Main Speaker, MC', division: 'DIDASKALIA',
+        no: 2, title: 'Firman & Briefing', minutes: 15, owner: 'Pembicara Firman, MC', division: 'DIDASKALIA',
         anchor: 'ACARA',
         notes: 'Firman 15 menit. Briefing mengumumkan pengundian urutan. Nama pencatat dan perwakilan tidak tampil di layar pada segmen ini; layar menampilkannya hanya di Sesi 2. T+10–T+25.',
         segments: [{ key: 'firman', label: 'Firman', kind: 'firman', auto: true }],
@@ -664,18 +664,18 @@ const PATTERNS = [
         notes: '10 kelompok × sekitar 2,5 menit termasuk transisi. Tiga slide: Stasiun A, Stasiun B, Bersama. Urutan undian di kontrol. Timer default 150 detik. Kelompok yang belum termuat tidak ikut undian. T+65–T+95.',
       },
       {
-        no: 6, title: 'Konklusi', minutes: 10, owner: 'Main Speaker, Mentor', division: 'DIDASKALIA',
+        no: 6, title: 'Konklusi', minutes: 10, owner: 'Pembicara Firman, Mentor', division: 'DIDASKALIA',
         anchor: 'ACARA',
         notes: 'Konklusi firman + chip Satu Kata + komitmen kelompok. Pemicu kontrol: DONE → refleksi/WRAPUP. T+95–T+105.',
       },
       {
-        no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Main Speaker, Pendoa, Pengumpul', division: 'LITURGIA',
+        no: 7, title: 'Persembahan & Doa', minutes: 10, owner: 'Pembicara Firman, Doa Syafaat, Pengumpul Persembahan', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: 'Kantong jalan + doa persembahan dan syafaat (mode HEMAT 10 menit). T+105–T+115.',
         segments: [{ key: 'persembahan', label: 'Persembahan', kind: 'song', songs: 1 }],
       },
       {
-        no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgia, Pendoa', division: 'LITURGIA',
+        no: 8, title: 'Lagu & Doa Penutup', minutes: 5, owner: 'Liturgos, Doa Syafaat', division: 'LITURGIA',
         anchor: 'ACARA',
         notes: '1 lagu + doa tutup + berkat. Unduh rekap dan bawa jar pulang. T+115–T+120.',
       },

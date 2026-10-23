@@ -159,6 +159,7 @@ export const portalEn = {
     'org-hierarchy': 'Manage Hierarchy',
     'groups-monitoring': 'Monitor 10 Groups',
     'penatalayan-usulan': 'Serving Proposals',
+    'penatalayan-tautan': 'Serving Link (BOD)',
     'absensi-grup': 'Group Attendance',
     groupsMonitoringBinaan: 'Monitor My Group',
     groupsMonitoringMine: 'My Group Monitoring',
@@ -656,6 +657,13 @@ export const portalEn = {
       steps: ['Pick the service date.', 'Tick the divisions whose roles you want to see.', 'Search and pick names per role, then send — every item waits in that division’s queue until approved.'],
       when: 'Before the rota is locked, when your group members can fill worship service roles.',
       notFor: 'This is a proposal, not a schedule — the division approves each name, and the assignment only appears on the schedule after approval.',
+    },
+    'penatalayan-tautan': {
+      title: 'BOD serving link',
+      purpose: 'Fill worship roles through one link per event — assignments go straight to Scheduled; empty roles can request the division.',
+      steps: ['Open the BOD link (token in the URL).', 'Pick a name for each role in rundown order.', 'Empty? Tap Request division — HOD prepares and confirms.'],
+      when: 'After BOD sends the link for that serving week’s event.',
+      notFor: 'Does not replace the legacy bulk proposal queue without a link; final confirm still lives on the service schedule.',
     },
     'absensi-grup': {
       title: 'Group attendance',
