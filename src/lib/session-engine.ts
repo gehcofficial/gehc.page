@@ -15,6 +15,48 @@ export const MERGED_PATTERN_ALIAS: Record<string, string> = {
   DUAL_MONOLOG: 'MONOLOG',
 };
 
+/** Metadata pola: slug Inggris + label tampilan Indonesia (enum DB `code` tidak diubah). */
+export const PATTERN_CATALOG_META: Record<
+  string,
+  { key: string; titleEn: string; displayLabelId: string }
+> = {
+  MONOLOG: { key: 'monolog-dialog', titleEn: 'Monolog Dialog', displayLabelId: 'Monolog & Dialog' },
+  BEDAH_FILM: { key: 'movie-breakdown', titleEn: 'Movie Breakdown', displayLabelId: 'Bedah Film' },
+  DEBAT: { key: 'battle-of-minds', titleEn: 'Battle of Minds', displayLabelId: 'Debat' },
+  CREATIVE_LAB: { key: 'creative-lab', titleEn: 'Creative Lab', displayLabelId: 'Creative Lab' },
+  THREE_SEQUENCES: { key: 'mission-sequence', titleEn: 'Mission Sequence', displayLabelId: 'Misi Bersama' },
+  POST_TO_POST: { key: 'post-to-post', titleEn: 'Post to Post', displayLabelId: 'Post to Post' },
+};
+
+/** Slug / alias lama → enum `code` kanonis. */
+export const PATTERN_KEY_TO_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(PATTERN_CATALOG_META).flatMap(([code, m]) => [
+    [m.key, code],
+    [code, code],
+  ]),
+);
+
+export function patternKey(code: string | null | undefined): string {
+  const c = resolvePatternCode(code);
+  return PATTERN_CATALOG_META[c]?.key || String(c || '').toLowerCase();
+}
+
+export function patternDisplayLabel(code: string | null | undefined): string {
+  const c = resolvePatternCode(code);
+  return PATTERN_CATALOG_META[c]?.displayLabelId || c;
+}
+
+export function matchesPatternCode(code: string | null | undefined, keyOrCode: string): boolean {
+  const c = resolvePatternCode(code);
+  const probe = String(keyOrCode || '').trim();
+  if (!probe) return false;
+  const upper = probe.toUpperCase();
+  if (c === upper) return true;
+  if (resolvePatternCode(upper) === c) return true;
+  const fromKey = PATTERN_KEY_TO_CODE[probe.toLowerCase()];
+  return fromKey ? resolvePatternCode(fromKey) === c : false;
+}
+
 /** Selesaikan kode pola (terapkan alias pola yang dilebur). */
 export function resolvePatternCode(code: string | null | undefined): string {
   const c = String(code || '').toUpperCase();

@@ -1,0 +1,73 @@
+import type { MentoringStatus } from './mentoring';
+import { resolvePatternCode } from './session-engine';
+
+export type DidaskaliaPhaseStep = {
+  key: string;
+  label: string;
+  /** Tombol aktif bila true untuk status sesi saat ini. */
+  enabledWhen: (status: MentoringStatus) => boolean;
+};
+
+const includes = (status: MentoringStatus, ...allowed: MentoringStatus[]) =>
+  allowed.includes(status);
+
+export const CREATIVE_LAB_DAY_FLOW =
+  'Undian → Briefing → Sesi 1 (Reminder Jar 15′) → Sesi 2 (Art Stations 25′) → Presentasi Kelompok → kelompok berikutnya → Buka Satu Kata. Timer aktivitas display-only; transisi manual.';
+
+export function monologPhaseSteps(prefMin: (key: string) => number): DidaskaliaPhaseStep[] {
+  return [
+    { key: 'F1', label: `Sesi 1 · Bedah Lagu · ${prefMin('F1')}′`, enabledWhen: (s) => s === 'DRAFT' },
+    { key: 'F2', label: `Sesi 2 · Deep Sharing · ${prefMin('F2')}′`, enabledWhen: (s) => s === 'RUNNING' },
+    { key: 'F3', label: `Sesi 3 · Kesaksian · ${prefMin('F3')}′`, enabledWhen: (s) => s === 'RUNNING' },
+    { key: 'CLOSING', label: `Konklusi · ${prefMin('CLOSING')}′`, enabledWhen: (s) => s === 'WRAPUP' },
+  ];
+}
+
+/** Movie Breakdown — mengikuti Creative Lab: Firman → Briefing → M0 … M4 */
+export function filmPhaseSteps(): DidaskaliaPhaseStep[] {
+  return [
+    { key: 'FIRMAN', label: 'Firman · layar judul', enabledWhen: (s) => includes(s, 'DRAFT', 'LIKERT_OPEN') },
+    { key: 'BRIEFING', label: 'Briefing · 5′', enabledWhen: (s) => includes(s, 'DRAFT', 'LIKERT_OPEN') },
+    { key: 'M0', label: 'Buka Likert AWAL · 5′', enabledWhen: (s) => includes(s, 'DRAFT', 'LIKERT_OPEN') },
+    { key: 'M1', label: 'Mulai Film (ikuti film)', enabledWhen: (s) => s === 'LIKERT_OPEN' },
+    { key: 'M3', label: 'Buka Likert AKHIR + LL · 5′', enabledWhen: (s) => s === 'RUNNING' },
+    { key: 'M4', label: 'Undi + Kesaksian · 10′', enabledWhen: (s) => s === 'RUNNING' },
+  ];
+}
+
+export function creativeLabPhaseSteps(): DidaskaliaPhaseStep[] {
+  return [
+    { key: 'DRAW', label: 'Undian', enabledWhen: () => true },
+    { key: 'BRIEFING', label: 'Briefing', enabledWhen: () => true },
+    { key: 'A1', label: 'Sesi 1', enabledWhen: () => true },
+    { key: 'A2', label: 'Sesi 2', enabledWhen: () => true },
+    { key: 'PRESENT', label: 'Presentasi', enabledWhen: () => true },
+    { key: 'WRAPUP', label: 'Buka Satu Kata', enabledWhen: (s) => s === 'RUNNING' || s === 'WRAPUP' },
+  ];
+}
+
+export function phaseStepsForPattern(
+  patternCode: string | null | undefined,
+  prefMin: (key: string) => number,
+): DidaskaliaPhaseStep[] {
+  const code = resolvePatternCode(patternCode);
+  switch (code) {
+    case 'MONOLOG':
+      return monologPhaseSteps(prefMin);
+    case 'BEDAH_FILM':
+      return filmPhaseSteps();
+    case 'CREATIVE_LAB':
+      return creativeLabPhaseSteps();
+    default:
+      return [];
+  }
+}
+
+export function dayFlowHintForPattern(patternCode: string | null | undefined): string | null {
+  const code = resolvePatternCode(patternCode);
+  if (code === 'CREATIVE_LAB') return CREATIVE_LAB_DAY_FLOW;
+  if (code === 'BEDAH_FILM') {
+    return 'Firman → Briefing → Likert AWAL → Mulai Film → Likert AKHIR + Lesson Learned → Undi & Kesaksian.';
+  }
+  return null;
+}

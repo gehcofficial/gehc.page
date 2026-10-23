@@ -9,6 +9,9 @@ import {
   MONOLOG_QUESTION_KEYS,
   noteSlotsFor,
   PATTERN_SEGMENTS,
+  matchesPatternCode,
+  patternDisplayLabel,
+  patternKey,
   resolvePatternCode,
   resolvePinnedSegment,
   segmentForPattern,
@@ -174,6 +177,13 @@ describe('session-engine: registry segmen', () => {
   it('CREATIVE_LAB: 6 kartu jar + KOMITMEN', () => {
     const keys = noteSlotsFor('CREATIVE_LAB').map((s) => s.key);
     expect(keys).toEqual(['JAR-ROOT', 'JAR-TRUTH', 'JAR-LOST', 'JAR-COMMUNITY', 'JAR-VERSE', 'JAR-STEP', 'KOMITMEN']);
+  });
+
+  it('patternKey slug Inggris + display label Indonesia', () => {
+    expect(patternKey('BEDAH_FILM')).toBe('movie-breakdown');
+    expect(patternDisplayLabel('BEDAH_FILM')).toBe('Bedah Film');
+    expect(matchesPatternCode('BEDAH_FILM', 'movie-breakdown')).toBe(true);
+    expect(matchesPatternCode('MONOLOG', 'monolog-dialog')).toBe(true);
   });
 
   it('DUAL_MONOLOG dilebur ke MONOLOG (alias + slot gabungan)', () => {

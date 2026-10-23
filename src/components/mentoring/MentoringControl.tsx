@@ -21,6 +21,7 @@ import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 import { lastPortalPlace } from '../../lib/portal-place';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
 import { sessionHasDraftContent } from '../../lib/worship-session-draft';
+import { CREATIVE_LAB_DAY_FLOW, dayFlowHintForPattern } from '../../lib/didaskalia-phase-config';
 import { PatternRundownList } from './PatternRundownList';
 import { TestimonyPanel } from './TestimonyPanel';
 import { ActivityPanel, DebatPanel, ScreeningPanel, TeamsPanel, saveStage } from './StagePanels';
@@ -981,6 +982,8 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
                 <>
                   {(
                     [
+                      { key: 'FIRMAN', label: 'Firman · layar judul', run: async () => { await saveStage(detail.session.id, { phase: { name: 'FIRMAN', startedAt: new Date().toISOString(), durationSec: 180, showOnScreen: true } }); setMsg({ kind: 'ok', text: 'Layar judul firman — timer 3 menit.' }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Tampilkan layar judul firman (Creative Lab style)' },
+                      { key: 'BRIEFING', label: 'Briefing · 2′', run: async () => { await saveStage(detail.session.id, { phase: { name: 'BRIEFING', startedAt: new Date().toISOString(), durationSec: 120, showOnScreen: true } }); setMsg({ kind: 'ok', text: 'Briefing film — timer 2 menit.' }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Briefing sinopsis & aturan catatan Q1–Q3' },
                       { key: 'M0', label: 'Buka Likert AWAL · 5’', run: async () => { await doAction('open-likert'); await filmSetRounds('open', 'closed', 'Likert AWAL dibuka (baseline 5 item).'); await saveStage(detail.session.id, { phase: { name: 'M0', startedAt: new Date().toISOString(), durationSec: 300, showOnScreen: true } }); await loadDetail(); }, on: ['DRAFT', 'LIKERT_OPEN'].includes(detail.session.status), title: 'Buka akses + gate ronde AWAL + timer 5 menit (satu-satunya timer film)' },
                       { key: 'M1', label: 'Mulai Film (ikuti film)', run: async () => { await doAction('start'); await filmSetRounds('closed', 'closed', 'Film mulai — Likert AWAL dikunci. Layar mode tenang.'); await saveStage(detail.session.id, { phase: null }); await loadDetail(); }, on: detail.session.status === 'LIKERT_OPEN', title: 'Start sesi + kunci AWAL + matikan timer (mengikuti durasi film)' },
                       { key: 'M3', label: 'Buka Likert AKHIR + Lesson Learned · 5’', run: async () => { await filmSetRounds('closed', 'open', 'Likert AKHIR + Lesson Learned dibuka — delta tampil di layar.'); }, on: detail.session.status === 'RUNNING', title: 'Buka ronde AKHIR + Lesson Learned serentak + tampil delta pre→post' },
@@ -1157,8 +1160,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
             {isCreativeLab && (
               <div className="mt-4 space-y-2">
                 <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900">
-                  <b>Alur hari-H:</b> Mulai Sesi → <b>Sesi 1</b> (Reminder Jar 15′) → <b>Sesi 2</b> (Art Stations 25′) → <b>Presentasi Kelompok</b> →{' '}
-                  <b>Kelompok berikutnya</b> sampai selesai → <b>Buka Satu Kata</b>. Timer aktivitas display-only; transisi manual. Kunci fase tetap A1/A2.
+                  <b>Alur hari-H:</b> {dayFlowHintForPattern(patternCode) || CREATIVE_LAB_DAY_FLOW}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#8C8880]">
                   <span>

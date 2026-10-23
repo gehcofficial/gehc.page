@@ -52,7 +52,7 @@ export function canonicalCreativeLabPhases(): LabPhase[] {
       notes: 'Layout meja per kelompok (5-8 orang), jar/toples, kertas 6/orang, media dua stasiun, cat, kuas, koran/celemek, area jemur. Bahan aktivitas dibagikan ke mentor dan co-mentor saat kedatangan, bukan di tengah sesi. Jam jemaat (T0) mulai setelah blok PRA selesai.',
     },
     {
-      no: null, title: 'Doa Petugas', minutes: 10, owner: 'Komisi/Tim Kerja, Didaskalia', division: 'DIDASKALIA',
+      no: null, title: 'Doa Petugas', minutes: 10, owner: 'Komisi/Tim Kerja, Tuan Rumah', division: 'KOINONIA',
       anchor: 'PRA', parallelGroup: 'pra', track: 'parallel',
       notes: 'Doa, pembagian stasiun, briefing perwakilan kelompok dan MC (paralel). Tak tambah total.',
     },
