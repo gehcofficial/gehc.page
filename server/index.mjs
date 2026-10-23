@@ -169,6 +169,7 @@ import { registerServingCycleRoutes } from './routes/serving-cycle.mjs';
 import { registerServiceOverrideRoutes } from './routes/service-overrides.mjs';
 import { registerServiceSwapRequestRoutes } from './routes/service-swap-requests.mjs';
 import { registerPenatalayanRequestRoutes } from './routes/penatalayan-requests.mjs';
+import { registerPenatalayanBodLinkRoutes } from './routes/penatalayan-bod-link.mjs';
 import { registerDidaskaliaRhbRoutes } from './routes/didaskalia-rhb.mjs';
 import { registerDidaskaliaStudioRoutes } from './routes/didaskalia-studio.mjs';
 import { registerLogoVoteRoutes } from './routes/logo-vote.mjs';
@@ -3327,6 +3328,7 @@ registerNotifCronRoutes(app, { wrap });
 registerServiceOverrideRoutes(app, { wrap });
 registerServiceSwapRequestRoutes(app, { wrap });
 registerPenatalayanRequestRoutes(app, { wrap });
+registerPenatalayanBodLinkRoutes(app, { wrap });
 registerDidaskaliaRhbRoutes(app, { wrap });
 registerDidaskaliaStudioRoutes(app, { wrap });
 registerLogoVoteRoutes(app, { wrap });
@@ -9317,6 +9319,9 @@ app.get('/api/events/:id/penatalayan', requireRole(...EVENT_PASTORAL_ROLES), wra
     previousPenatalayanEvent(prisma, event.id, event.eventDate),
   ]);
 
+  const { resolveWorshipPatternCode } = await import('./lib/event-worship-pattern.mjs');
+  const worshipPatternCode = await resolveWorshipPatternCode(prisma, event);
+
   const keepContact = isPastoralStaff(req.authUser);
   res.json({
     event,
@@ -9326,6 +9331,7 @@ app.get('/api/events/:id/penatalayan', requireRole(...EVENT_PASTORAL_ROLES), wra
       user: redactUserContact(row.user, keepContact),
     })),
     previous,
+    worshipPatternCode,
   });
 }));
 

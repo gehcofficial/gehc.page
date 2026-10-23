@@ -8,6 +8,7 @@ import { ManageActivities } from './ManageActivities';
 import { ManageTestimonials } from './ManageTestimonials';
 import { ManageGroupsMonitoring } from './ManageGroupsMonitoring';
 import { MentorPenatalayanUsulanPanel } from './MentorPenatalayanUsulanPanel';
+import { PenatalayanBodLinkPanel } from './PenatalayanBodLinkPanel';
 import { PastoralCareBoard } from './PastoralCareBoard';
 import { BeyondersLeadersPanel } from './BeyondersLeadersPanel';
 import { ManageStruktur } from './ManageStruktur';
@@ -267,6 +268,7 @@ export const PortalLayout: React.FC = () => {
     'org-hierarchy': Network,
     'groups-monitoring': Users,
     'penatalayan-usulan': ClipboardList,
+    'penatalayan-tautan': ClipboardList,
     'absensi-grup': ClipboardCheck,
     'beyonders-leaders': Crown,
     'pastoral-care': HeartHandshake,
@@ -1125,6 +1127,11 @@ export const PortalLayout: React.FC = () => {
             <div className="space-y-4">
               <PanelGuide guideId="penatalayan-usulan" />
               <MentorPenatalayanUsulanPanel />
+            </div>
+          )}
+          {activeTab === 'penatalayan-tautan' && (
+            <div className="space-y-4">
+              <PenatalayanBodLinkPanel />
             </div>
           )}
           {activeTab === 'absensi-grup' && (

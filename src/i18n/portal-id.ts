@@ -153,6 +153,7 @@ export const portalId: typeof portalEn = {
     'org-hierarchy': 'Kelola Hirarki',
     'groups-monitoring': 'Monitoring 10 Kelompok',
     'penatalayan-usulan': 'Usulan Pelayanan',
+    'penatalayan-tautan': 'Tautan Penatalayan',
     'absensi-grup': 'Absensi Grup',
     groupsMonitoringBinaan: 'Monitoring Kelompok Binaan',
     groupsMonitoringMine: 'Monitoring Kelompok Saya',
@@ -650,6 +651,13 @@ export const portalId: typeof portalEn = {
       steps: ['Pilih tanggal pelayanan.', 'Centang divisi yang perannya mau kamu lihat.', 'Cari dan pilih nama per peran lalu kirim — tiap item menunggu di antrean divisi sampai disetujui.'],
       when: 'Sebelum rota dikunci, saat anggota binaanmu bisa mengisi peran ibadah.',
       notFor: 'Ini usulan, bukan jadwal — divisi menyetujui tiap nama, dan penugasan baru muncul di jadwal setelah disetujui.',
+    },
+    'penatalayan-tautan': {
+      title: 'Tautan Penatalayan BOD',
+      purpose: 'Mengisi petugas per peran ibadah lewat satu tautan per event — langsung Dijadwalkan; peran kosong bisa Minta ke divisi.',
+      steps: ['Buka tautan dari BOD (parameter token di URL).', 'Pilih nama per peran sesuai segment rundown.', 'Kosong? Ketuk Minta ke divisi — HOD menyiapkan dan mengonfirmasi.'],
+      when: 'Setelah BOD mengirim link untuk event serving pekan itu.',
+      notFor: 'Bukan pengganti antrean approve lama untuk usulan bulk tanpa tautan; konfirmasi akhir tetap di jadwal penatalayan.',
     },
     'absensi-grup': {
       title: 'Absensi grup',

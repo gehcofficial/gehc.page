@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Users, Plus, X, Check, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ServiceRole } from '../../types/penatalayan';
 import { buildResponsibleGroupCaption, displayServiceRoleName } from '../../lib/serving-roles';
+import { penatalayanBodLinkUrl } from '../../lib/penatalayan-bod-link-ui';
 import { PenatalayanRolesEditor } from './PenatalayanRolesEditor';
 import { SearchableMultiSelect } from '../ui/SearchableMultiSelect';
 import type { SearchableOption } from '../../lib/searchable-options';
@@ -86,6 +87,11 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
   const [hostId, setHostId] = useState('');
   const [groupBusy, setGroupBusy] = useState<'save' | 'route' | null>(null);
   const [groupMsg, setGroupMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [worshipPatternCode, setWorshipPatternCode] = useState('CREATIVE_LAB');
+  const [bodLinkUrl, setBodLinkUrl] = useState<string | null>(null);
+  const [bodCaption, setBodCaption] = useState<string | null>(null);
+  const [bodBusy, setBodBusy] = useState(false);
+  const [bodMsg, setBodMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +106,7 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       setRoles(d.roles || []);
       setAssignments(d.assignments || []);
       setPrevious(d.previous || null);
+      setWorshipPatternCode(String(d.worshipPatternCode || 'CREATIVE_LAB').toUpperCase());
       const pg = (d.event?.metadata && typeof d.event.metadata === 'object'
         ? (d.event.metadata as Record<string, unknown>).penatalayanGroups
         : null) as { responsibleGroupId?: string; hostGroupId?: string } | null;
@@ -278,6 +285,54 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
     }
   };
 
+  const createBodLink = async () => {
+    setBodBusy(true);
+    setBodMsg(null);
+    try {
+      const r = await fetch('/api/penatalayan/bod-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId,
+          patternCode: worshipPatternCode,
+          hostGroupId: hostId || undefined,
+          responsibleGroupId: respId || undefined,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Gagal membuat tautan.');
+      const token = String(d.link?.token || '');
+      const url = d.url ? String(d.url) : penatalayanBodLinkUrl(token);
+      setBodLinkUrl(url);
+      if (token) {
+        const cr = await fetch(`/api/penatalayan/bod-links/token/${encodeURIComponent(token)}/caption`, { credentials: 'include' });
+        const cd = await cr.json().catch(() => ({}));
+        if (cr.ok && cd.caption) setBodCaption(String(cd.caption));
+      }
+      setBodMsg({
+        ok: true,
+        text: d.reused ? 'Tautan yang sudah ada ditampilkan.' : `Tautan dibuat (pola ${worshipPatternCode}).`,
+      });
+    } catch (e) {
+      setBodMsg({ ok: false, text: e instanceof Error ? e.message : 'Gagal membuat tautan.' });
+    } finally {
+      setBodBusy(false);
+    }
+  };
+
+  const copyBodLink = async () => {
+    if (!bodLinkUrl) return;
+    await navigator.clipboard?.writeText(bodLinkUrl);
+    setBodMsg({ ok: true, text: 'Tautan disalin.' });
+  };
+
+  const copyBodCaption = async () => {
+    if (!bodCaption) return;
+    await navigator.clipboard?.writeText(bodCaption);
+    setBodMsg({ ok: true, text: 'Caption WA disalin.' });
+  };
+
   const totalAssigned = assignments.filter((a) => a.status !== 'CANCELLED').length;
 
   return (
@@ -320,6 +375,58 @@ export const EventPenatalayanPanel: React.FC<Props> = ({ eventId, canEdit }) => 
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
+
+      {canEdit && (
+        <div className="rounded-2xl border border-brand/20 bg-white p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-black uppercase tracking-widest text-[#8C8880]">
+              Tautan pengisian BOD
+            </p>
+            <span className="text-[10px] text-[#8C8880]">Pola: {worshipPatternCode}</span>
+          </div>
+          <p className="text-[11px] text-[#8C8880]">
+            Satu tautan per event — mentor/co-mentor/HOD mengisi peran; kosong bisa Minta ke divisi.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void createBodLink()}
+              disabled={bodBusy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand text-white text-[11px] font-bold disabled:opacity-40"
+            >
+              {bodBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+              Buat link penatalayan
+            </button>
+            {bodLinkUrl && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void copyBodLink()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold"
+                >
+                  Salin tautan
+                </button>
+                {bodCaption && (
+                  <button
+                    type="button"
+                    onClick={() => void copyBodCaption()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold"
+                  >
+                    Salin caption WA
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          {bodLinkUrl && (
+            <p className="text-[10px] break-all text-[#5C5850] font-mono bg-[#FAF9F5] rounded-xl p-2 border border-[#D9D7D0]/60">{bodLinkUrl}</p>
+          )}
+          {bodCaption && (
+            <pre className="text-[10px] whitespace-pre-wrap max-h-40 overflow-auto text-[#5C5850] bg-[#FAF9F5] rounded-xl p-2 border border-[#D9D7D0]/60">{bodCaption}</pre>
+          )}
+          {bodMsg && <p className={`text-[11px] ${bodMsg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{bodMsg.text}</p>}
+        </div>
+      )}
 
       {canEdit && (
         <div className="rounded-2xl border border-[#D9D7D0]/60 bg-[#FAF9F5] p-4 space-y-3">
