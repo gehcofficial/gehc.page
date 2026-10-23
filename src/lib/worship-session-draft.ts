@@ -246,44 +246,92 @@ const CREATIVE_LAB_ACTIVITY_SLOTS = 4;
 
 function creativeLabActivitySection(n: number): DraftSection {
   const p = `a${n}`;
-  const itemFields: DraftField[] = [];
-  for (let i = 1; i <= 6; i += 1) {
-    itemFields.push(
-      t(`${p}-item-${i}-judul`, `Item ${i} — judul`, 'text', n === 1 ? 'Judul kartu (English boleh)' : 'Judul stasiun / karya'),
-      t(`${p}-item-${i}-konteks`, `Item ${i} — konteks`, 'textarea', 'Arahan singkat untuk peserta …'),
-      t(`${p}-item-${i}-pertanyaan`, `Item ${i} — pertanyaan`, 'textarea', 'Pertanyaan refleksi …'),
-      t(`${p}-item-${i}-contoh`, `Item ${i} — contoh (opsional)`, 'textarea', 'Contoh jawaban …'),
-      t(`${p}-item-${i}-ai`, `Item ${i} — diisi AI (1/true)`, 'text', ''),
-    );
+  const jarItemFields: DraftField[] = [];
+  if (n === 1) {
+    for (let i = 1; i <= 6; i += 1) {
+      jarItemFields.push(
+        t(`${p}-item-${i}-judul`, `Kartu ${i} — judul`, 'text', 'Judul kartu (English boleh)'),
+        t(`${p}-item-${i}-konteks`, `Kartu ${i} — konteks`, 'textarea', 'Arahan singkat untuk peserta …'),
+        t(`${p}-item-${i}-pertanyaan`, `Kartu ${i} — pertanyaan`, 'textarea', 'Pertanyaan refleksi …'),
+        t(`${p}-item-${i}-contoh`, `Kartu ${i} — contoh (opsional)`, 'textarea', 'Contoh jawaban …'),
+        t(`${p}-item-${i}-ai`, `Kartu ${i} — diisi AI (1/true)`, 'text', ''),
+      );
+    }
   }
-  const stationFields: DraftField[] = n >= 2
+  const advancedItemFields: DraftField[] = [];
+  if (n >= 3) {
+    for (let i = 1; i <= 6; i += 1) {
+      advancedItemFields.push(
+        t(`${p}-item-${i}-judul`, `Item ${i} — judul`, 'text', 'Judul stasiun / karya'),
+        t(`${p}-item-${i}-konteks`, `Item ${i} — konteks`, 'textarea', 'Arahan singkat untuk peserta …'),
+        t(`${p}-item-${i}-pertanyaan`, `Item ${i} — pertanyaan`, 'textarea', 'Pertanyaan refleksi …'),
+        t(`${p}-item-${i}-contoh`, `Item ${i} — contoh (opsional)`, 'textarea', 'Contoh jawaban …'),
+        t(`${p}-item-${i}-ai`, `Item ${i} — diisi AI (1/true)`, 'text', ''),
+      );
+    }
+  }
+  const artStationFields: DraftField[] = n === 2
     ? [
-      t(`${p}-station-media`, 'Nama media / stasiun A', 'text', ''),
-      t(`${p}-station-theme`, 'Judul tema stasiun A', 'text', ''),
-      ...(n === 2
-        ? [
-          t('a2-b-media', 'Nama media stasiun B', 'text', ''),
-          t('a2-b-theme', 'Judul tema stasiun B', 'text', ''),
-        ]
-        : []),
+      t('a2-station-media', 'Stasiun A — nama media', 'text', 'Pot'),
+      t('a2-station-theme', 'Stasiun A — judul tema', 'text', ''),
+      t('a2-pot-meaning', 'Stasiun A — makna (layar)', 'textarea', ''),
+      t('a2-pot', 'Stasiun A — arahan / refleksi', 'textarea', ''),
+      t('a2-b-media', 'Stasiun B — nama media', 'text', 'Tas'),
+      t('a2-b-theme', 'Stasiun B — judul tema', 'text', ''),
+      t('a2-bag-meaning', 'Stasiun B — makna (layar)', 'textarea', ''),
+      t('a2-bag', 'Stasiun B — arahan / refleksi', 'textarea', ''),
     ]
     : [];
+  const extraStationFields: DraftField[] = n >= 3
+    ? [
+      t(`${p}-station-media`, 'Nama media / stasiun', 'text', ''),
+      t(`${p}-station-theme`, 'Judul tema stasiun', 'text', ''),
+    ]
+    : [];
+  const titleDefault = n === 1 ? 'Reminder Jar' : n === 2 ? 'Art Station' : `Aktivitas ${n}`;
+  const sectionTitle = n === 1 ? 'Aktivitas 1 · Reminder Jar' : n === 2 ? 'Aktivitas 2 · Art Station' : `Aktivitas ${n} (lanjutan)`;
+  const hint = n === 1
+    ? 'Sesi kertas + web: 6 kartu di layar; tiap orang tulis di kertas, pilih 2 untuk diisi digital. Wajib judul aktivitas + menit.'
+    : n === 2
+      ? 'Dua stasiun paralel (label media bebas, mis. Pot/Tas) + slide Commitment saat presentasi. Field bertanda diisi AI harus direview sebelum terbit.'
+      : 'Opsi lanjutan: aktivitas seni tambahan (satu slide presentasi per aktivitas). Field bertanda diisi AI harus direview sebelum terbit.';
   return {
     key: `activity-${n}`,
-    title: `Aktivitas ${n}`,
-    hint: n === 1
-      ? 'Sesi kertas + web: 6 pertanyaan di layar; tiap orang tulis di kertas, pilih 2 untuk diisi digital. Wajib judul aktivitas + menit.'
-      : 'Sesi karya: perwakilan mengunggah makna & foto (kuota mengikuti jumlah aktivitas seni). Field bertanda diisi AI harus direview sebelum terbit.',
+    title: sectionTitle,
+    hint,
     fields: [
-      t(`${p}-title`, 'Judul aktivitas *', 'text', n === 1 ? 'Aktivitas 1' : `Aktivitas ${n}`),
+      t(`${p}-title`, 'Judul aktivitas *', 'text', titleDefault),
       t(`${p}-minutes`, 'Durasi (menit) *', 'number', n === 1 ? '15' : '25'),
       t(`${p}-konteks`, 'Konteks / tujuan', 'textarea', ''),
-      t(`${p}-pertanyaan`, 'Pertanyaan / langkah', 'textarea', ''),
-      t(`${p}-contoh`, 'Contoh (opsional)', 'textarea', ''),
-      ...stationFields,
-      ...itemFields,
+      ...(n >= 3 ? [
+        t(`${p}-pertanyaan`, 'Pertanyaan / langkah', 'textarea', ''),
+        t(`${p}-contoh`, 'Contoh (opsional)', 'textarea', ''),
+      ] : []),
+      ...artStationFields,
+      ...extraStationFields,
+      ...jarItemFields,
+      ...advancedItemFields,
     ],
   };
+}
+
+/** Sembunyikan aktivitas di atas `activity-count` (data tetap tersimpan). */
+export function visibleCreativeLabDraftSections(
+  sections: DraftSection[],
+  showHiddenActivities: boolean,
+): { visible: DraftSection[]; hiddenCount: number; activityCount: number } {
+  const raw = Number(String(sections.find((s) => s.key === 'meta')?.fields.find((f) => f.key === 'activity-count')?.value || '2').replace(/[^\d]/g, ''));
+  const activityCount = Number.isFinite(raw) && raw >= 1 && raw <= CREATIVE_LAB_ACTIVITY_SLOTS ? raw : 2;
+  let hiddenCount = 0;
+  const visible = sections.filter((s) => {
+    const m = /^activity-(\d+)$/.exec(s.key);
+    if (!m) return true;
+    const n = Number(m[1]);
+    if (n <= activityCount) return true;
+    hiddenCount += 1;
+    return showHiddenActivities;
+  });
+  return { visible, hiddenCount, activityCount };
 }
 
 /** Template bebas Creative Lab — liturgi tetap di rundown; blok aktivitas fleksibel. */

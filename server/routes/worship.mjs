@@ -315,24 +315,15 @@ export const LAB_PHOTO_LIMIT = { POT: 2, BAG: 2, GROUP: 1 };
 const LAB_PHASE_WRITABLE = 'A2';
 
 /** Kuota foto per slot (dinamis dari brief). Dipakai unggah perwakilan dan unggah admin. */
+const LAB_DEFAULT_ART_BRIEF = {
+  activities: [{ index: 2, stationMedia: 'Stasiun A', stationBMedia: 'Stasiun B' }],
+};
+
 export function labPhotoQuota(rows, kind, briefOrLabels = {}) {
   const key = String(kind || '').toUpperCase();
-  const limits = briefOrLabels?.activities
-    ? labPhotoLimitsForBrief(briefOrLabels)
-    : labPhotoLimitsForBrief({
-      activities: [
-        { index: 2, stationMedia: briefOrLabels.mediaA || 'Stasiun A' },
-        { index: 3, stationMedia: briefOrLabels.mediaB || 'Stasiun B' },
-      ],
-    });
-  const labelMap = briefOrLabels?.activities ? labPhotoKindLabels(briefOrLabels) : {
-    ...labPhotoKindLabels({
-      activities: [
-        { index: 2, stationMedia: briefOrLabels.mediaA || 'Stasiun A' },
-        { index: 3, stationMedia: briefOrLabels.mediaB || 'Stasiun B' },
-      ],
-    }),
-  };
+  const briefForLimits = briefOrLabels?.activities?.length ? briefOrLabels : LAB_DEFAULT_ART_BRIEF;
+  const limits = labPhotoLimitsForBrief(briefForLimits);
+  const labelMap = labPhotoKindLabels(briefForLimits);
   if (!Object.prototype.hasOwnProperty.call(limits, key) || limits[key] === 0) {
     return { ok: false, status: 400, error: 'Slot foto tidak dikenal atau tidak dipakai pola ini.' };
   }

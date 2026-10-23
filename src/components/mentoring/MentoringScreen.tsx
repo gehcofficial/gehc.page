@@ -535,10 +535,12 @@ const MentoringScreen: React.FC = () => {
               const labTeams = data.lab?.teams || [];
               const order = labPresentationOrder(act, teams.length);
               const keyDirections = data.lab?.keyDirections || brief?.briefing?.projectorDirective || brief?.briefing?.audienceDirective || '';
-              const slideTitles = presentSlidePlan(brief).map((s) => s.label);
-              const slideMax = Math.max(0, slideTitles.length - 1);
+              const slidePlan = presentSlidePlan(brief);
+              const slideTitles = slidePlan.map((s) => s.label);
+              const slideMax = Math.max(0, slidePlan.length - 1);
               const presentTeamIndex = order[act.presentIndex] ?? act.presentIndex;
               const presentSlide = Math.min(slideMax, Math.max(0, Math.floor(Number(act.presentSlide) || 0)));
+              const currentSlide = slidePlan[presentSlide];
               const presenting = teams[presentTeamIndex];
               const presentingLab = labTeams.find((t) => t.index === presentTeamIndex) || null;
               const stations = labStationCopy(brief);
@@ -616,27 +618,35 @@ const MentoringScreen: React.FC = () => {
                         <p className="font-display text-4xl sm:text-5xl font-black mt-2">{presenting.name}</p>
                       </div>
                       <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-white/50 mt-4">
-                        {presentSlide + 1}/3 · {slideTitles[presentSlide]}
+                        {presentSlide + 1}/{slidePlan.length} · {slideTitles[presentSlide]}
                       </p>
                       {presentingLab ? (
                         <div className="mt-4">
-                          {presentSlide === 0 && (
+                          {currentSlide?.photoKind === 'POT' && (
                             <LabSlideArt
-                              label={`Stasiun A · ${stations.mediaA}`}
-                              meaning={presentingLab.pot.meaning || `Makna ${stations.mediaA} belum diisi.`}
+                              label={`Stasiun A · ${currentSlide.media || stations.mediaA}`}
+                              meaning={presentingLab.pot.meaning || `Makna ${currentSlide.media || stations.mediaA} belum diisi.`}
                               photos={presentingLab.pot.photos}
                               tone="emerald"
                             />
                           )}
-                          {presentSlide === 1 && (
+                          {currentSlide?.photoKind === 'BAG' && (
                             <LabSlideArt
-                              label={`Stasiun B · ${stations.mediaB}`}
-                              meaning={presentingLab.bag.meaning || `Makna ${stations.mediaB} belum diisi.`}
+                              label={`Stasiun B · ${currentSlide.media || stations.mediaB}`}
+                              meaning={presentingLab.bag.meaning || `Makna ${currentSlide.media || stations.mediaB} belum diisi.`}
                               photos={presentingLab.bag.photos}
                               tone="brand"
                             />
                           )}
-                          {presentSlide === 2 && (
+                          {currentSlide?.photoKind?.startsWith('ACT') && (
+                            <LabSlideArt
+                              label={currentSlide.label}
+                              meaning={`Tema: ${currentSlide.theme || '—'}`}
+                              photos={[]}
+                              tone="emerald"
+                            />
+                          )}
+                          {(currentSlide?.photoKind === 'COMMIT' || currentSlide?.station === 'COMMIT') && (
                             <div className="space-y-4">
                               <div className="h-[68vh] rounded-2xl bg-black/40 border border-white/10 grid place-items-center overflow-hidden">
                                 {presentingLab.groupPhoto?.photoUrl ? (

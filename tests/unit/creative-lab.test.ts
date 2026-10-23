@@ -247,7 +247,7 @@ describe('creative-lab: payload peserta & layar', () => {
       repName: 'Rina',
       pot: { meaning: 'Makna baru', progress: 60 },
       commitment: 'Tumbuh',
-      photoComplete: true,
+      photoComplete: false,
     });
     expect(summary.teams[0].pot.photos).toHaveLength(1);
   });

@@ -231,26 +231,124 @@ export function creativeLabBriefFromDraft(draft) {
   };
 }
 
-/** Slide presentasi: satu per aktivitas seni (indeks ≥2) + Commitment. */
+function artActivitiesFromBrief(brief) {
+  const fromBrief = (Array.isArray(brief?.activities) ? brief.activities : []).filter((a) => a.index >= 2);
+  if (fromBrief.length) return fromBrief;
+  if (brief?.a2) {
+    return [{
+      index: 2,
+      title: brief.a2.title,
+      stationMedia: brief.a2.stationA?.media,
+      stationTheme: brief.a2.stationA?.theme,
+      stationBMedia: brief.a2.stationB?.media,
+      stationBTheme: brief.a2.stationB?.theme,
+      legacyPot: brief.a2.pot,
+      legacyBag: brief.a2.bag,
+      legacyPotMeaning: brief.a2.potMeaning,
+      legacyBagMeaning: brief.a2.bagMeaning,
+    }];
+  }
+  return [];
+}
+
+export function artStationBVisible(a) {
+  const media = str(a.stationBMedia, 40);
+  const theme = str(a.stationBTheme, 120);
+  const bag = str(a.legacyBag, 800);
+  const bagMeaning = str(a.legacyBagMeaning, 1200);
+  return Boolean(media || theme || bag || bagMeaning);
+}
+
+function slideForStation(a, station, photoKind) {
+  const isB = station === 'B';
+  const media = isB
+    ? (str(a.stationBMedia, 40) || 'Stasiun B')
+    : (str(a.stationMedia, 40) || str(a.title, 120) || `Aktivitas ${a.index}` || 'Stasiun A');
+  const theme = isB ? str(a.stationBTheme, 120) : str(a.stationTheme, 120);
+  const letter = isB ? 'B' : 'A';
+  return {
+    activityIndex: a.index,
+    label: `Slide Stasiun ${letter} · ${media}`,
+    media,
+    theme,
+    photoKind,
+    station,
+  };
+}
+
+/** Slide presentasi: Art Station A/B (aktivitas 2) + satu slide per aktivitas seni lain + Commitment. */
 export function presentSlidePlan(brief) {
-  const acts = Array.isArray(brief?.activities) ? brief.activities : [];
-  const art = acts.filter((a) => a.index >= 2);
-  const slides = art.map((a, i) => {
-    const label = a.stationMedia || a.title || `Aktivitas ${a.index}`;
-    const letter = String.fromCharCode(65 + Math.min(i, 25));
-    return {
-      activityIndex: a.index,
-      label: `Slide Stasiun ${letter} · ${label}`,
-      media: label,
-      theme: a.stationTheme || '',
-    };
+  const acts = artActivitiesFromBrief(brief);
+  const slides = [];
+  for (const a of acts) {
+    if (a.index === 2) {
+      slides.push(slideForStation(a, 'A', 'POT'));
+      if (artStationBVisible(a)) slides.push(slideForStation(a, 'B', 'BAG'));
+    } else {
+      const media = str(a.stationMedia, 40) || str(a.title, 120) || `Aktivitas ${a.index}`;
+      slides.push({
+        activityIndex: a.index,
+        label: `Slide Stasiun A · ${media}`,
+        media,
+        theme: str(a.stationTheme, 120),
+        photoKind: `ACT${a.index}`,
+        station: 'A',
+      });
+    }
+  }
+  slides.push({
+    activityIndex: 0,
+    label: 'Slide Bersama · Commitment',
+    media: 'Commitment',
+    theme: '',
+    photoKind: 'COMMIT',
+    station: 'COMMIT',
   });
-  slides.push({ activityIndex: 0, label: 'Slide Bersama · Commitment', media: 'Commitment', theme: '' });
-  return slides;
+  if (slides.length > 1) return slides;
+  return [
+    slideForStation({ index: 2, stationMedia: 'Stasiun A' }, 'A', 'POT'),
+    slideForStation({ index: 2, stationBMedia: 'Stasiun B' }, 'B', 'BAG'),
+    {
+      activityIndex: 0,
+      label: 'Slide Bersama · Commitment',
+      media: 'Commitment',
+      theme: '',
+      photoKind: 'COMMIT',
+      station: 'COMMIT',
+    },
+  ];
 }
 
 export function presentSlideCount(brief) {
-  return Math.max(1, presentSlidePlan(brief).length);
+  return Math.max(0, presentSlidePlan(brief).length - 1);
+}
+
+export function labArtStationSlotsFromBrief(brief) {
+  const acts = artActivitiesFromBrief(brief);
+  if (!acts.length) {
+    return [
+      { kind: 'POT', label: brief?.a2?.stationA?.media || 'Stasiun A', theme: brief?.a2?.stationA?.theme || '', photoLimit: 2 },
+      { kind: 'BAG', label: brief?.a2?.stationB?.media || 'Stasiun B', theme: brief?.a2?.stationB?.theme || '', photoLimit: 2 },
+    ];
+  }
+  const slots = [];
+  for (const a of acts) {
+    if (a.index === 2) {
+      const mediaA = str(a.stationMedia, 40) || 'Stasiun A';
+      const mediaB = str(a.stationBMedia, 40) || 'Stasiun B';
+      slots.push({ kind: 'POT', label: mediaA, theme: str(a.stationTheme, 120), photoLimit: 2 });
+      if (artStationBVisible(a)) {
+        slots.push({ kind: 'BAG', label: mediaB, theme: str(a.stationBTheme, 120), photoLimit: 2 });
+      }
+    } else {
+      const media = str(a.stationMedia, 40) || str(a.title, 120) || `Aktivitas ${a.index}`;
+      slots.push({ kind: `ACT${a.index}`, label: media, theme: str(a.stationTheme, 120), photoLimit: 2 });
+    }
+  }
+  return slots.length ? slots : [
+    { kind: 'POT', label: 'Stasiun A', theme: '', photoLimit: 2 },
+    { kind: 'BAG', label: 'Stasiun B', theme: '', photoLimit: 2 },
+  ];
 }
 
 export function totalActivityMinutes(draft) {
@@ -279,26 +377,18 @@ export function labPhotoKindForArtIndex(i) {
 }
 
 export function labPhotoLimitsForBrief(brief) {
-  const acts = (Array.isArray(brief?.activities) ? brief.activities : []).filter((a) => a.index >= 2);
   const limits = { GROUP: 1 };
-  acts.forEach((a, i) => {
-    limits[labPhotoKindForArtIndex(i)] = 2;
-  });
-  if (!acts.length) {
-    limits.POT = 0;
-    limits.BAG = 0;
+  for (const slot of labArtStationSlotsFromBrief(brief)) {
+    limits[slot.kind] = slot.photoLimit;
   }
   return limits;
 }
 
 export function labPhotoKindLabels(brief) {
-  const acts = (Array.isArray(brief?.activities) ? brief.activities : []).filter((a) => a.index >= 2);
   const labels = { GROUP: 'Foto Bersama' };
-  acts.forEach((a, i) => {
-    const key = labPhotoKindForArtIndex(i);
-    const media = a.stationMedia || a.title || `Aktivitas ${a.index}`;
-    labels[key] = `Foto ${media}`;
-  });
+  for (const slot of labArtStationSlotsFromBrief(brief)) {
+    labels[slot.kind] = `Foto ${slot.label}`;
+  }
   return labels;
 }
 

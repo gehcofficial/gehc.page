@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clapperboard, Dices, Eye, EyeOff, ImagePlus, Loader2, Pause, Play, Plus, RotateCcw, Save, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { JURY_CRITERIA, ROUND_STEPS, jurySideScore, roundStepLabel } from '../../lib/session-engine';
-import { BEYONDERS_GROUPS, LAB_PHOTO_CAP, LAB_PRESENT_SLIDES, LAB_STATION_CAP, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
-import { labPresentationOrder } from '../../lib/creative-lab-draft';
+import { BEYONDERS_GROUPS, LAB_PHOTO_CAP, LAB_STATION_CAP, MISSION_INTERNAL_ROLES, MISSION_TEAM_CAP, defaultJointTeams, stepLabPresentation } from '../../lib/mentoring';
+import { labPresentationOrder, presentSlideCount, presentSlidePlan, sessionBriefFromStoredDraft } from '../../lib/creative-lab-draft';
 import { useLabActivityContextOptional } from '../../context/LabActivityContext';
 import { parseLabActivity } from '../../hooks/useLabActivity';
 
@@ -704,6 +704,9 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
   const [savedTeamNames, setSavedTeamNames] = useState('');
   const [participantsReady, setParticipantsReady] = useState(false);
   const [stations, setStations] = useState({ a: 'Pot', b: 'Tas' });
+  const [labBrief, setLabBrief] = useState(() => sessionBriefFromStoredDraft(null));
+  const slidePlan = useMemo(() => presentSlidePlan(labBrief), [labBrief]);
+  const slideMax = useMemo(() => presentSlideCount(labBrief), [labBrief]);
   const [loading, setLoading] = useState(true);
   const [loadedOnce, setLoadedOnce] = useState(false);
   const loadedOnceRef = useRef(false);
@@ -725,9 +728,12 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
         await reloadLabActivity();
       }
       setLab(cfg.lab && Array.isArray(cfg.lab.teams) ? cfg.lab as LabSummary : null);
-      const a2 = cfg.draft?.['activity-2'] && typeof cfg.draft['activity-2'] === 'object' ? cfg.draft['activity-2'] : {};
+      const draft = cfg.draft && typeof cfg.draft === 'object' ? cfg.draft : {};
+      const briefFromDraft = sessionBriefFromStoredDraft(draft as Record<string, Record<string, string>>);
+      setLabBrief(briefFromDraft);
+      const a2 = draft['activity-2'] && typeof draft['activity-2'] === 'object' ? draft['activity-2'] : {};
       setStations({
-        a: String(a2['a2-a-media'] || '').trim() || 'Pot',
+        a: String(a2['a2-station-media'] || a2['a2-a-media'] || '').trim() || 'Pot',
         b: String(a2['a2-b-media'] || '').trim() || 'Tas',
       });
       const jar = cfg.draft?.jar && typeof cfg.draft.jar === 'object' ? cfg.draft.jar : {};
@@ -956,7 +962,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
 
   const stepSlide = (direction: 1 | -1) => {
     const count = Math.max(1, presentationOrder.length);
-    const next = stepLabPresentation(activity, count, direction);
+    const next = stepLabPresentation(activity, count, direction, slideMax);
     if (next.phase === 'DONE') {
       void pushActivity(
         { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: next.presentIndex, presentSlide: next.presentSlide },
@@ -977,7 +983,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
       },
       changedGroup
         ? `Giliran ${team?.name || `kelompok ${next.presentIndex + 1}`}.`
-        : `Slide ${next.presentSlide + 1}/3 · ${LAB_PRESENT_SLIDES[next.presentSlide]}.`,
+        : `Slide ${next.presentSlide + 1}/${slidePlan.length} · ${slidePlan[next.presentSlide]?.label || ''}.`,
     );
   };
 
@@ -1109,7 +1115,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
           <div className="mt-3 flex items-center justify-between rounded-xl bg-[#1B1B1B] px-4 py-3 text-white">
             <div>
               <p className="text-[10px] font-black uppercase tracking-wider text-white/50">
-                {activity.phase === 'PRESENT' ? `${teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`} · ${Math.min(presentationOrder.length, activity.presentIndex + 1)} / ${Math.max(1, presentationOrder.length)} · slide ${activity.presentSlide + 1}/3 ${LAB_PRESENT_SLIDES[activity.presentSlide] || ''}` : 'Timer fase'}
+                {activity.phase === 'PRESENT' ? `${teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`} · ${Math.min(presentationOrder.length, activity.presentIndex + 1)} / ${Math.max(1, presentationOrder.length)} · slide ${activity.presentSlide + 1}/${slidePlan.length} ${slidePlan[activity.presentSlide]?.label || ''}` : 'Timer fase'}
               </p>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
@@ -1131,7 +1137,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
               <span className="text-[11px] font-bold text-[#8C8880]">
                 Sedang tampil: {teams[currentTeamIndex]?.name || `Kelompok ${currentTeamIndex + 1}`}
                 {teams[currentTeamIndex]?.repName ? ` — ${teams[currentTeamIndex].repName}` : ''}
-                {' · '}slide {activity.presentSlide + 1}/3 {LAB_PRESENT_SLIDES[activity.presentSlide]}
+                {' · '}slide {activity.presentSlide + 1}/{slidePlan.length} {slidePlan[activity.presentSlide]?.label}
               </span>
               <button type="button" disabled={busy} onClick={() => stepSlide(-1)} className="ml-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#D9D7D0] text-xs font-bold disabled:opacity-60">
                 <ChevronLeft className="w-3.5 h-3.5" /> Sebelumnya

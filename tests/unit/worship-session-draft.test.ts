@@ -71,6 +71,9 @@ describe('session-draft: template kosongan 6 pola', () => {
     expect(keys).toContain('a1-minutes');
     expect(keys).toContain('a1-item-1-judul');
     expect(keys).toContain('a2-title');
+    expect(keys).toContain('a2-station-media');
+    expect(keys).toContain('a2-b-media');
+    expect(keys).not.toContain('a2-item-3-judul');
     expect(keys).toContain('present-seconds');
     expect(keys.filter((k) => k.startsWith('group-'))).toHaveLength(0);
     expect(keys.filter((k) => k.startsWith('lesson-chip-'))).toHaveLength(0);
