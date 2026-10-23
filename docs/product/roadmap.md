@@ -1,6 +1,6 @@
-﻿# Roadmap — GEHC Youth Ecosystem (gehc.page)
+﻿# Roadmap — GEHC.page (portal jemaat & unit BIPRA)
 
-Rencana pengembangan berdasarkan bukti di kode (badge tenant, dependensi terpasang, keterbatasan saat ini). Roadmap asli belum pernah didokumentasikan sebelumnya — dokumen ini menjadi baseline resmi pertama.
+Rencana pengembangan ekosistem **GEHC.page**: hub `gehc.page` (jemaat/BPMJ) + portal unit (`youth`, `men`, `women`, `teen`, `kids`, `districts`, `community`). Beyonders/Pemuda tetap produk utama di `youth.gehc.page`, tetapi arsitektur dan roadmap meliputi seluruh jemaat.
 
 ---
 
@@ -10,7 +10,7 @@ Rencana pengembangan berdasarkan bukti di kode (badge tenant, dependensi terpasa
 
 ---
 
-## Fase 0 — MVP Youth Portal ✅ *(saat ini)*
+## Fase 0 — MVP Youth Portal ✅ *(selesai — fondasi Beyonders)*
 
 - ✅ Situs publik 5 halaman: Home, Warta, Kegiatan, Kelompok, Struktur.
 - ✅ Portal administrasi 7 modul (Dashboard, Warta, Kegiatan, Monitoring, Struktur, RBAC, Integrasi).

@@ -1,6 +1,6 @@
 # Portal per Unit — Usulan Modul (F3.5)
 
-> Status: **usulan untuk ditinjau** (26 Sep 2026). Belum ada implementasi.
+> Status: **MVP scaffold aktif** (Okt 2026) — landing unit + nav tenant-scoped + pengurus/anggota; modul khusus per unit (kurikulum SM, koinonia P/KB, dll.) masih terbuka.
 > Melanjutkan F1–F3.4 (portal per domain, tenant, peran per unit, data ter-scope).
 > Dokumen desain besar: [`church-portal.md`](church-portal.md).
 > Kepatuhan SMSI-82 (istilah portal vs Tata Gereja):

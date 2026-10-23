@@ -260,3 +260,14 @@ export function portalScopeLabel(id: PortalId): string {
   if (scope.kind === 'KOLOM') return 'Lingkup: Kolom';
   return `Lingkup: ${portalProfile(id).shortLabel}`;
 }
+
+/** Origin HTTPS untuk portal saat ini (tanpa hardcode youth). */
+export function portalPublicOrigin(host: string, search = ''): string {
+  const portalId = resolvePortalId(host, search);
+  const h = unitHostForPortal(portalId, host) || portalProfile(portalId).host;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const scheme = window.location.protocol || 'https:';
+    return `${scheme}//${h}`;
+  }
+  return `https://${h}`;
+}

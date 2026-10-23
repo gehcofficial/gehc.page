@@ -57,7 +57,9 @@ export function makeReferralCode(random: () => number = Math.random): string {
 
 /** Link publik referral (tanpa login untuk pengklik). */
 export function referralLink(code: string, origin?: string): string {
-  const base = (origin || '').replace(/\/$/, '') || 'https://youth.gehc.page';
+  const fallback =
+    typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : 'https://youth.gehc.page';
+  const base = (origin || '').replace(/\/$/, '') || fallback;
   return `${base}/#/join?ref=${encodeURIComponent(code)}`;
 }
 

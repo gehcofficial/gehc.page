@@ -18,8 +18,13 @@ import { MyChannelsCard } from './MyChannelsCard';
 import { MyServiceDutyCard } from './MyServiceDutyCard';
 import { displayAvatar } from '../../lib/avatar';
 import { fmt } from '../../lib/portal-i18n';
+import { portalProfile, resolvePortalId } from '../../lib/portal-profiles';
 
 export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
+  const publicHostLabel = useMemo(() => {
+    if (typeof window === 'undefined') return 'portal unit';
+    return portalProfile(resolvePortalId(window.location.hostname, window.location.search)).host;
+  }, []);
   const {
     currentTenant,
     currentUser,
@@ -202,7 +207,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
           <div className="bg-white rounded-3xl p-6 border border-[#D9D7D0]/50 shadow-sm">
             <span className="text-xs font-bold text-[#8C8880] uppercase tracking-wider">Konten Publik</span>
             <p className="text-2xl font-black text-[#1B1B1B] mt-2">{activeWeeklyCount + activeActivityCount}</p>
-            <p className="text-[11px] text-[#8C8880] mt-1">Warta & agenda aktif di youth.gehc.page</p>
+            <p className="text-[11px] text-[#8C8880] mt-1">Warta & agenda aktif di {publicHostLabel}</p>
           </div>
         </div>
       ) : (
@@ -255,7 +260,7 @@ export const PortalDashboard: React.FC<{ onNavigate: (page: string) => void }> =
                 </div>
                 <div>
                   <div className="text-3xl font-black text-[#1B1B1B]">{activeWeeklyCount}</div>
-                  <p className="text-[11px] text-[#8C8880] mt-1">Live di youth.gehc.page</p>
+                  <p className="text-[11px] text-[#8C8880] mt-1">Live di {publicHostLabel}</p>
                 </div>
               </div>
 
