@@ -9319,6 +9319,9 @@ app.get('/api/events/:id/penatalayan', requireRole(...EVENT_PASTORAL_ROLES), wra
     previousPenatalayanEvent(prisma, event.id, event.eventDate),
   ]);
 
+  const { resolveWorshipPatternCode } = await import('./lib/event-worship-pattern.mjs');
+  const worshipPatternCode = await resolveWorshipPatternCode(prisma, event);
+
   const keepContact = isPastoralStaff(req.authUser);
   res.json({
     event,
@@ -9328,6 +9331,7 @@ app.get('/api/events/:id/penatalayan', requireRole(...EVENT_PASTORAL_ROLES), wra
       user: redactUserContact(row.user, keepContact),
     })),
     previous,
+    worshipPatternCode,
   });
 }));
 
