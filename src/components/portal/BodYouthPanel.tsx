@@ -79,7 +79,7 @@ export const BodYouthPanel: React.FC = () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ eventId }),
+      body: JSON.stringify({ eventId, refreshGroups: true }),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Gagal membuat tautan.');

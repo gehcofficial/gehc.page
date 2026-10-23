@@ -4,6 +4,7 @@
  * Keluar-grup WA tetap manual di HP; sistem memberi daftar + caption + arsip.
  */
 import { wibDateOnly } from './event-venue.mjs';
+import { resolveServingPairForWeek } from './resolve-serving-pair.mjs';
 
 export const WEEK_STATUSES = ['DRAFT', 'OPEN', 'CLOSED'];
 const NEXT = { DRAFT: ['OPEN'], OPEN: ['CLOSED', 'DRAFT'], CLOSED: [] };
@@ -104,16 +105,25 @@ export async function buildWeekInviteList(prisma, eventDateISO) {
   const empty = { serving: null, officers: [], mentors: [], hods: [] };
   if (!prisma) return empty;
   try {
-    const serving = await prisma.servingAssignment.findFirst({
-      where: { eventDate: { gte: dayStart, lte: dayEnd } },
-      include: { responsibleGroup: { select: { id: true, name: true } }, hostGroup: { select: { id: true, name: true } } },
-    }).catch(() => null);
-    const event = serving?.eventId
-      ? await prisma.eventProgram.findUnique({ where: { id: serving.eventId }, select: { id: true, name: true } }).catch(() => null)
-      : await prisma.eventProgram.findFirst({
-        where: { eventDate: { gte: dayStart, lte: dayEnd }, serviceType: 'SERVING_DAY' },
-        select: { id: true, name: true },
-      }).catch(() => null);
+    const pair = await resolveServingPairForWeek(prisma, { gridDate: eventDateISO });
+    const serving = pair.hostGroupId && pair.responsibleGroupId
+      ? {
+        responsibleGroupId: pair.responsibleGroupId,
+        hostGroupId: pair.hostGroupId,
+        responsibleGroup: pair.responsibleGroup,
+        hostGroup: pair.hostGroup,
+        cycleIndex: pair.cycleIndex,
+        eventId: pair.event?.id || null,
+      }
+      : null;
+    const event = pair.event
+      ? pair.event
+      : (serving?.eventId
+        ? await prisma.eventProgram.findUnique({ where: { id: serving.eventId }, select: { id: true, name: true } }).catch(() => null)
+        : await prisma.eventProgram.findFirst({
+          where: { eventDate: { gte: dayStart, lte: dayEnd }, serviceType: 'SERVING_DAY' },
+          select: { id: true, name: true },
+        }).catch(() => null));
 
     const schedWhere = event?.id
       ? { OR: [{ eventId: event.id }, { eventId: null, date: { gte: dayStart, lte: dayEnd } }] }
@@ -140,7 +150,7 @@ export async function buildWeekInviteList(prisma, eventDateISO) {
       });
     }
 
-    const groupIds = [serving?.responsibleGroupId, serving?.hostGroupId].filter(Boolean);
+    const groupIds = [pair.responsibleGroupId, pair.hostGroupId].filter(Boolean);
     let mentors = [];
     if (groupIds.length) {
       const mrows = await prisma.groupMember.findMany({
@@ -168,15 +178,19 @@ export async function buildWeekInviteList(prisma, eventDateISO) {
       }));
     }
 
+    const servingOut = pair.hostGroupId && pair.responsibleGroupId
+      ? {
+        responsibleGroup: pair.responsibleGroup || { id: pair.responsibleGroupId },
+        hostGroup: pair.hostGroup || { id: pair.hostGroupId },
+        cycleIndex: pair.cycleIndex ?? null,
+        event: event ? { id: event.id, name: event.name } : null,
+      }
+      : (event ? { responsibleGroup: null, hostGroup: null, cycleIndex: null, event: { id: event.id, name: event.name } } : null);
+
     return {
-      serving: serving
-        ? {
-          responsibleGroup: serving.responsibleGroup || { id: serving.responsibleGroupId },
-          hostGroup: serving.hostGroup || { id: serving.hostGroupId },
-          cycleIndex: serving.cycleIndex ?? null,
-          event: event ? { id: event.id, name: event.name } : null,
-        }
-        : event ? { responsibleGroup: null, hostGroup: null, cycleIndex: null, event: { id: event.id, name: event.name } } : null,
+      serving: servingOut,
+      pairSource: pair.source,
+      pairWarnings: pair.warnings,
       officers,
       mentors,
       hods,

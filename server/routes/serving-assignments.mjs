@@ -5,7 +5,7 @@ import { sundaysInMonth } from '../lib/church-year.mjs';
 import { SERVING_PAIRS, resolvePairIds, resolvePairIdsDb } from '../lib/serving-cycle.mjs';
 import { applyServingBackfill, planServingBackfill } from '../lib/serving-backfill.mjs';
 import { listOverrides } from '../lib/service-overrides.mjs';
-import { geserConsumesRotationSlot } from '../lib/serving-week-expectations.mjs';
+import { buildExpectedCycleIndexMap } from '../lib/serving-week-expectations.mjs';
 
 function toDateOnly(d) {
   if (!d) return null;
@@ -111,11 +111,6 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
       // Bangun kalender Minggu serving virtual untuk tanggal yang belum punya assignment
       const byDate = new Map(rows.map((r) => [new Date(r.eventDate).toISOString().slice(0, 10), r]));
       const groups = await prisma.group.findMany({ select: { id: true, name: true, color: true } }).catch(() => []);
-      // base cycle index = jumlah serving yang sudah ada sebelum from (untuk kontinuitas)
-      let baseIdx = 0;
-      try {
-        baseIdx = await prisma.servingAssignment.count({ where: { eventDate: { lt: from } } });
-      } catch {}
       // Kumpulkan semua Minggu serving (bukan W1 mentoring) di rentang
       const start = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
       const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
@@ -144,9 +139,8 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
       const todayISO = new Date().toISOString().slice(0, 10);
       const virtual = [];
       const specials = [];
-      let seq = 0; // minggu consuming yang sudah diproses (real + virtual)
-      // Urutkan servingSundays kronologis
       servingSundays.sort((a, b) => a.getTime() - b.getTime());
+      const expectedByIso = await buildExpectedCycleIndexMap(prisma, from, to, byDate);
       for (const s of servingSundays) {
         const iso = s.toISOString().slice(0, 10);
         const ov = overrides.get(iso);
@@ -160,9 +154,9 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
             if (moved) {
               moved._override = ov;
               moved._geserFrom = iso;
-              const expectedGeser = (baseIdx + seq) % 10;
-              moved._expectedCycleIndex = expectedGeser;
-              if (!moved.isSwapped && moved.cycleIndex !== expectedGeser && iso >= todayISO) {
+              const expectedGeser = expectedByIso.get(iso);
+              if (expectedGeser != null) moved._expectedCycleIndex = expectedGeser;
+              if (expectedGeser != null && !moved.isSwapped && moved.cycleIndex !== expectedGeser && iso >= todayISO) {
                 moved._needsSync = true;
               }
               specials.push({
@@ -175,7 +169,6 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
                 isVirtual: false,
                 isSpecial: true,
               });
-              if (geserConsumesRotationSlot(ov, moved)) seq += 1;
               continue;
             }
             // Override tercatat tapi baris belum dipindah — tampilkan peringatan.
@@ -219,16 +212,16 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
           });
           continue; // tidak consume idx
         }
-        const expected = (baseIdx + seq) % 10;
+        const expected = expectedByIso.get(iso);
         const real = byDate.get(iso);
         if (real) {
-          real._expectedCycleIndex = expected;
-          if (!real.isSwapped && real.cycleIndex !== expected && iso >= todayISO) {
+          if (expected != null) real._expectedCycleIndex = expected;
+          if (expected != null && !real.isSwapped && real.cycleIndex !== expected && iso >= todayISO) {
             real._needsSync = true; // badge review + kandidat rebase
           }
-          seq += 1;
           continue;
         }
+        if (expected == null) continue;
         const cycleIndex = expected;
         const pair = await resolvePairIdsDb(prisma, cycleIndex, groups);
         virtual.push({
@@ -243,7 +236,6 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
           event: null,
           isVirtual: true,
         });
-        seq += 1;
       }
       const serializeRow = (r) => ({
         ...r,
