@@ -7,6 +7,7 @@ import {
   sessionDraftGuard,
   storedToSections,
   templateFieldKeys,
+  visibleCreativeLabDraftSections,
   type DraftSection,
 } from '../../lib/worship-session-draft';
 import { preferSession, sessionOptionLabel } from '../../lib/worship-session-select';
@@ -185,6 +186,7 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   const [slugDraft, setSlugDraft] = useState('');
   const [titleDraft, setTitleDraft] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
+  const [showHiddenLabActivities, setShowHiddenLabActivities] = useState(false);
   const proposalChips = useRef<{ topicCode?: string | null }[] | undefined>(undefined);
   // Setelah reset pola yang tidak menghapus apa pun (sesi lama kept/terisi),
   // tahan seleksi kosong agar form film lama tidak langsung kepilih lagi.
@@ -283,6 +285,13 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
   }, [detail, isPostDetail]);
 
   const progress = useMemo(() => countFilled(sections), [sections]);
+
+  const labSectionView = useMemo(() => {
+    if (detailCode !== 'CREATIVE_LAB') {
+      return { visible: sections, hiddenCount: 0, activityCount: 2 };
+    }
+    return visibleCreativeLabDraftSections(sections, showHiddenLabActivities);
+  }, [sections, detailCode, showHiddenLabActivities]);
 
   const setField = (sectionKey: string, fieldKey: string, value: string) => {
     setSections((prev) =>
@@ -804,8 +813,23 @@ export const SessionDraftTab: React.FC<Props> = ({ ym, weekIndex, patternCode, e
         )}
       </div>
 
+      {detail && detailCode === 'CREATIVE_LAB' && labSectionView.hiddenCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#EFEDE8] bg-[#FAF9F5] px-3 py-2">
+          <p className="text-[11px] text-[#8C8880]">
+            Menampilkan {labSectionView.activityCount} aktivitas default. {labSectionView.hiddenCount} blok lanjutan disembunyikan (data tetap tersimpan).
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowHiddenLabActivities((v) => !v)}
+            className="ml-auto text-[11px] font-bold text-brand underline"
+          >
+            {showHiddenLabActivities ? 'Sembunyikan aktivitas 3–4' : 'Tampilkan aktivitas lanjutan'}
+          </button>
+        </div>
+      )}
+
       <div key={`${selectedId || 'none'}-${detailCode}`} className="space-y-3">
-      {detail && sections.map((s) => (
+      {detail && labSectionView.visible.map((s) => (
         <div key={s.key} className={CARD}>
           <h5 className="text-xs font-black text-[#1B1B1B]">{s.title}</h5>
           <p className="text-[11px] text-[#8C8880] mb-2">{s.hint}</p>
