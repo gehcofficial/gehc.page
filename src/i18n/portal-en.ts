@@ -160,6 +160,7 @@ export const portalEn = {
     'groups-monitoring': 'Monitor 10 Groups',
     'penatalayan-usulan': 'Serving Proposals',
     'penatalayan-tautan': 'Serving Link (BOD)',
+    'panel-bod': 'BOD Panel',
     'absensi-grup': 'Group Attendance',
     groupsMonitoringBinaan: 'Monitor My Group',
     groupsMonitoringMine: 'My Group Monitoring',
@@ -664,6 +665,13 @@ export const portalEn = {
       steps: ['Open the BOD link (token in the URL).', 'Pick a name for each role in rundown order.', 'Empty? Tap Request division — HOD prepares and confirms.'],
       when: 'After BOD sends the link for that serving week’s event.',
       notFor: 'Does not replace the legacy bulk proposal queue without a link; final confirm still lives on the service schedule.',
+    },
+    'panel-bod': {
+      title: 'BOD panel',
+      purpose: 'Single hub for Youth Tim Kerja: serving links per event, division queues, WA captions, full rundown, and day-of session control (briefing & draw).',
+      steps: ['Pick the worship event at the top.', 'Penatalayan tab: create/copy link and watch slots.', 'Queue & Caption tabs: cross-division requests and host-group WA text.', 'Rundown & Session tabs: full pattern and Creative Lab control.'],
+      when: 'Coordinating the serving week as Youth BOD Tim Kerja.',
+      notFor: 'Not for division HODs only — they keep their division panels; mentors still use Serving Link.',
     },
     'absensi-grup': {
       title: 'Group attendance',

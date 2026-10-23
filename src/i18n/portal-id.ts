@@ -154,6 +154,7 @@ export const portalId: typeof portalEn = {
     'groups-monitoring': 'Monitoring 10 Kelompok',
     'penatalayan-usulan': 'Usulan Pelayanan',
     'penatalayan-tautan': 'Tautan Penatalayan',
+    'panel-bod': 'Panel BOD',
     'absensi-grup': 'Absensi Grup',
     groupsMonitoringBinaan: 'Monitoring Kelompok Binaan',
     groupsMonitoringMine: 'Monitoring Kelompok Saya',
@@ -658,6 +659,13 @@ export const portalId: typeof portalEn = {
       steps: ['Buka tautan dari BOD (parameter token di URL).', 'Pilih nama per peran sesuai segment rundown.', 'Kosong? Ketuk Minta ke divisi — HOD menyiapkan dan mengonfirmasi.'],
       when: 'Setelah BOD mengirim link untuk event serving pekan itu.',
       notFor: 'Bukan pengganti antrean approve lama untuk usulan bulk tanpa tautan; konfirmasi akhir tetap di jadwal penatalayan.',
+    },
+    'panel-bod': {
+      title: 'Panel BOD',
+      purpose: 'Satu pintu Tim Kerja Youth: tautan penatalayan per event, antrean divisi, caption WA, rundown lengkap, dan kontrol sesi hari-H (briefing & undian).',
+      steps: ['Pilih event ibadah di atas.', 'Tab Penatalayan: buat/salin link dan pantau slot.', 'Tab Antrean & Caption: antrean lintas divisi dan teks WA grup penanggung jawab.', 'Tab Rundown & Sesi: pola penuh dan kontrol Creative Lab.'],
+      when: 'Koordinasi minggu serving sebagai BOD Tim Kerja Youth.',
+      notFor: 'Bukan untuk HOD divisi saja — mereka tetap di panel divisinya; mentor mengisi via Tautan Penatalayan.',
     },
     'absensi-grup': {
       title: 'Absensi grup',
