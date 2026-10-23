@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { saveStage } from '../components/mentoring/StagePanels';
+import {
+  cleanLabCompleted,
+  defaultLabCompleted,
+  normalizeLabPhase,
+  type LabCompleted,
+} from '../lib/lab-step-gate';
 
-export type LabActivityPhase = 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+export type LabActivityPhase = 'PRE' | 'BRIEFING' | 'DRAW' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
 
 export type LabActivityState = {
   phase: LabActivityPhase;
@@ -18,10 +24,11 @@ export type LabActivityState = {
   presentPostponed: number[];
   presentDrawnAt: string | null;
   durations: { A1: number; A2: number; PRESENT: number };
+  completed: LabCompleted;
 };
 
 const defaultActivity = (): LabActivityState => ({
-  phase: 'IDLE',
+  phase: 'PRE',
   startedAt: null,
   durationSec: 900,
   showOnScreen: true,
@@ -35,6 +42,7 @@ const defaultActivity = (): LabActivityState => ({
   presentPostponed: [],
   presentDrawnAt: null,
   durations: { A1: 900, A2: 1500, PRESENT: 150 },
+  completed: defaultLabCompleted(),
 });
 
 async function fetchStageConfig(sessionId: string) {
@@ -44,16 +52,27 @@ async function fetchStageConfig(sessionId: string) {
   return d.session?.config || {};
 }
 
+async function ensureSessionRunning(sessionId: string) {
+  const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/state`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ action: 'start' }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok && r.status !== 409) throw new Error(d?.error || 'Gagal memulai sesi (RUNNING).');
+}
+
 export function parseLabActivity(cfg: Record<string, unknown>): LabActivityState {
   const a = cfg.activity && typeof cfg.activity === 'object' ? (cfg.activity as Record<string, unknown>) : {};
   const dur = a.durations && typeof a.durations === 'object' ? (a.durations as Record<string, unknown>) : {};
-  const phaseRaw = String(a.phase || 'IDLE').toUpperCase();
-  const phase = (['DRAW', 'IDLE', 'A1', 'A2', 'PRESENT', 'DONE'] as const).includes(phaseRaw as LabActivityPhase)
-    ? (phaseRaw as LabActivityPhase)
-    : 'IDLE';
+  const startedAt = (a.startedAt as string) || null;
+  const phase = normalizeLabPhase(String(a.phase || 'PRE'), startedAt);
+  const phases = ['PRE', 'BRIEFING', 'DRAW', 'A1', 'A2', 'PRESENT', 'DONE'] as const;
+  const phaseSafe = (phases as readonly string[]).includes(phase) ? phase : 'PRE';
   return {
-    phase,
-    startedAt: (a.startedAt as string) || null,
+    phase: phaseSafe as LabActivityPhase,
+    startedAt,
     durationSec: Number(a.durationSec) || Number(dur.A1) || 900,
     showOnScreen: a.showOnScreen !== false,
     cardIndex: Math.min(5, Math.max(0, Number(a.cardIndex) || 0)),
@@ -70,7 +89,20 @@ export function parseLabActivity(cfg: Record<string, unknown>): LabActivityState
       A2: Number(dur.A2) || 1500,
       PRESENT: Number(dur.PRESENT) || Number(a.presentSeconds) || 150,
     },
+    completed: cleanLabCompleted(a.completed),
   };
+}
+
+function shufflePresentOrder(teamCount: number, missing: Set<number>): number[] {
+  const arr: number[] = [];
+  for (let i = 0; i < teamCount; i += 1) {
+    if (!missing.has(i)) arr.push(i);
+  }
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 export function useLabActivity(sessionId: string | null) {
@@ -91,15 +123,18 @@ export function useLabActivity(sessionId: string | null) {
   const pushActivity = useCallback(
     async (patch: Partial<LabActivityState>, msg?: string) => {
       if (!sessionId) return;
-      const next: LabActivityState = {
-        ...activity,
-        ...patch,
-        durations: { ...activity.durations, ...(patch.durations || {}) },
-      };
-      setActivity(next);
       setBusy(true);
       setNote(null);
       try {
+        const cfg = await fetchStageConfig(sessionId);
+        const current = parseLabActivity(cfg);
+        const next: LabActivityState = {
+          ...current,
+          ...patch,
+          durations: { ...current.durations, ...(patch.durations || {}) },
+          completed: { ...current.completed, ...(patch.completed || {}) },
+        };
+        setActivity(next);
         await saveStage(sessionId, { activity: next });
         if (msg) setNote(msg);
       } catch (e) {
@@ -109,24 +144,67 @@ export function useLabActivity(sessionId: string | null) {
         setBusy(false);
       }
     },
-    [activity, sessionId, reload],
+    [sessionId, reload],
   );
 
-  const startDraw = useCallback(
-    () => pushActivity(
-      { phase: 'DRAW', startedAt: new Date().toISOString(), durationSec: 300, presentStartedAt: null },
-      'Undian — tampilkan nomor grup di layar.',
-    ),
-    [pushActivity],
-  );
+  const startDraw = useCallback(async () => {
+    if (!sessionId) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const cfg = await fetchStageConfig(sessionId);
+      const teams = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
+      const presentable = teams
+        .map((t: { name?: string; missing?: boolean }, i: number) => (String(t?.name || '').trim() && !t?.missing ? i : -1))
+        .filter((i: number) => i >= 0);
+      if (!presentable.length) {
+        setNote('Muat / isi kelompok dulu sebelum mengundi.');
+        return;
+      }
+      const order = shufflePresentOrder(teams.length, new Set(
+        teams.map((t: { missing?: boolean }, i: number) => (t?.missing ? i : -1)).filter((i: number) => i >= 0),
+      ));
+      const drawnAt = new Date().toISOString();
+      await pushActivity(
+        {
+          phase: 'DRAW',
+          startedAt: drawnAt,
+          durationSec: 300,
+          presentStartedAt: null,
+          presentOrder: order.length ? order : presentable,
+          presentDrawnAt: drawnAt,
+          presentIndex: 0,
+          presentSlide: 0,
+        },
+        'Undian — urutan presentasi tampil di layar.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [sessionId, pushActivity]);
 
-  const startBriefing = useCallback(
-    () => pushActivity(
-      { phase: 'IDLE', startedAt: new Date().toISOString(), durationSec: 900, presentStartedAt: null },
-      'Firman & Briefing 15 menit — 10 menit judul firman, 5 menit panggil perwakilan.',
-    ),
-    [pushActivity],
-  );
+  const startBriefing = useCallback(async () => {
+    if (!sessionId) return;
+    setBusy(true);
+    try {
+      await ensureSessionRunning(sessionId);
+      const now = new Date().toISOString();
+      await pushActivity(
+        {
+          phase: 'BRIEFING',
+          startedAt: now,
+          durationSec: 900,
+          presentStartedAt: null,
+          completed: { ...defaultLabCompleted(), BRIEFING_AT: now },
+        },
+        'Briefing — instruksi undian & slot urutan di layar. Isi perwakilan di panel kontrol.',
+      );
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'Gagal memulai briefing.');
+    } finally {
+      setBusy(false);
+    }
+  }, [sessionId, pushActivity]);
 
   const startPhase = useCallback(
     (phase: 'A1' | 'A2') => {
@@ -160,10 +238,22 @@ export function useLabActivity(sessionId: string | null) {
   );
 
   const resetStage = useCallback(() => {
-    if (!window.confirm('Reset panggung ke Undian? Timer & fase aktivitas direset — jawaban audiens tidak dihapus.')) return;
+    if (!window.confirm('Reset panggung ke awal (judul tema saja)? Timer & fase aktivitas direset — jawaban audiens tidak dihapus.')) return;
     void pushActivity(
-      { phase: 'DRAW', startedAt: null, presentStartedAt: null, cardIndex: 0, presentIndex: 0, presentSlide: 0 },
-      'Panggung direset ke Undian.',
+      {
+        phase: 'PRE',
+        startedAt: null,
+        presentStartedAt: null,
+        cardIndex: 0,
+        presentIndex: 0,
+        presentSlide: 0,
+        presentOrder: [],
+        presentDrawnAt: null,
+        presentSkipped: [],
+        presentPostponed: [],
+        completed: defaultLabCompleted(),
+      },
+      'Panggung direset ke awal.',
     );
   }, [pushActivity]);
 
@@ -198,8 +288,8 @@ export function useLabActivity(sessionId: string | null) {
         : activity.phase === 'PRESENT' ? 'Presentasi Kelompok'
           : activity.phase === 'DRAW' ? 'Undian'
             : activity.phase === 'DONE' ? 'Selesai'
-              : activity.phase === 'IDLE' && activity.startedAt ? 'Briefing'
-                : 'Belum mulai';
+              : activity.phase === 'BRIEFING' ? 'Briefing'
+                : 'Menunggu Briefing';
 
   return useMemo(
     () => ({

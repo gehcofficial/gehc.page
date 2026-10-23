@@ -1,15 +1,23 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useLabActivity } from '../hooks/useLabActivity';
 
 type LabActivityApi = ReturnType<typeof useLabActivity>;
 
 const LabActivityContext = createContext<LabActivityApi | null>(null);
 
-export const LabActivityProvider: React.FC<{ sessionId: string; children: React.ReactNode }> = ({
+export const LabActivityProvider: React.FC<{
+  sessionId: string;
+  reloadKey?: string | number | null;
+  children: React.ReactNode;
+}> = ({
   sessionId,
+  reloadKey,
   children,
 }) => {
   const api = useLabActivity(sessionId);
+  useEffect(() => {
+    void api.reload();
+  }, [reloadKey, api.reload]);
   const value = useMemo(() => api, [api]);
   return <LabActivityContext.Provider value={value}>{children}</LabActivityContext.Provider>;
 };

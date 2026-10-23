@@ -197,7 +197,9 @@ fallback generik bila kosong.
 
 | Field | Isi |
 |---|---|
-| `phase` | `IDLE` → `A1` → `A2` → `PRESENT` → `DONE` |
+| `phase` | `PRE` → `BRIEFING` → `DRAW` → `A1` → `A2` → `PRESENT` → `DONE` (transisi ketat; server 409 jika lompat) |
+| `completed` | `{ BRIEFING_AT, DRAW_AT, A1_AT, A2_AT, PRESENT_AT, DONE_AT }` — timestamp tiap langkah |
+| `resetAt` | Marker reset draf; HP/layar kosongkan cache lokal bila berubah |
 | `startedAt` / `durationSec` | timer fase A1/A2 (display-only, transisi manual) |
 | `presentStartedAt` / `presentSeconds` | timer presentasi per kelompok (default baru 150 detik; nilai tersimpan, termasuk 120, tidak ditimpa) |
 | `presentIndex` | kelompok yang sedang tampil (0-9) |
@@ -215,7 +217,7 @@ Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto
 
 ### 12.4 Kontrol & layar
 
-- **Kontrol** (`#/mentoring/<slug>/kontrol`): `ActivityPanel` —
+- **Kontrol** (`#/mentoring/<slug>/kontrol`): strip **Briefing → Undian → Sesi 1 → Sesi 2 → Presentasi → Buka Satu Kata** (gembok sampai langkah sebelumnya jalan) + `ActivityPanel` —
   A1 / A2 / Presentasi / Kelompok berikutnya / Stop / Reset, input durasi
   fase, toggle tampil layar, navigator 6 kartu, tombol **Muat 10 kelompok**.
   Nama kelompok terkunci bila `groupId` terisi. Perwakilan, Tim Pot, dan

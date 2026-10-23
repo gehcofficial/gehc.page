@@ -207,7 +207,7 @@ export type PhasePrefs = Partial<Record<'F1' | 'F2' | 'F3' | 'CLOSING', { durati
 
 /** State panggung Creative Lab (fase aktivitas + timer + kartu jar + presentasi). */
 export type SessionActivity = {
-  phase: 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+  phase: 'PRE' | 'BRIEFING' | 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
   startedAt: string | null;
   durationSec: number;
   showOnScreen: boolean;
@@ -223,6 +223,14 @@ export type SessionActivity = {
   presentPostponed?: number[];
   presentDrawnAt?: string | null;
   durations?: { A1: number; A2: number; PRESENT: number };
+  completed?: {
+    BRIEFING_AT?: string | null;
+    DRAW_AT?: string | null;
+    A1_AT?: string | null;
+    A2_AT?: string | null;
+    PRESENT_AT?: string | null;
+    DONE_AT?: string | null;
+  };
 } | null;
 
 /** Ringkasan naskah Creative Lab dari draft sesi (layar & HP peserta). */
@@ -345,6 +353,7 @@ export type MentoringSessionPayload = {
   myResult: MentoringMyResult | null;
   rooms: MentoringRoom[];
   progress: { submitted: number; total: number };
+  resetAt?: string | null;
 };
 
 export type MentoringLivePayload = {
@@ -382,6 +391,8 @@ export type MentoringLivePayload = {
   /** Agregat ronde film (delta pre→post di layar). */
   likertMeans?: { pre: { avg: number | null; n: number }; post: { avg: number | null; n: number }; delta: number | null } | null;
   wrapUpAt: string | null;
+  /** Marker reset draf — klien kosongkan cache lokal bila berubah. */
+  resetAt?: string | null;
 };
 
 export function isMentoringHash(hash: string): boolean {
@@ -419,7 +430,7 @@ export function codeFromMentoringHash(hash: string): string {
   return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
-export const LAB_PRESENT_SLIDES = ['Slide Stasiun A', 'Slide Stasiun B', 'Slide Bersama · Commitment'] as const;
+export const LAB_PRESENT_SLIDES = ['Pot', 'Bag', 'Commitment'] as const;
 
 /** Kuota foto Creative Lab. Sama dengan server `LAB_PHOTO_LIMIT`. */
 export const LAB_PHOTO_CAP = { POT: 2, BAG: 2, GROUP: 1 } as const;

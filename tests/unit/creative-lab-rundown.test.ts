@@ -54,7 +54,7 @@ describe('creative lab rundown: baca katalog lama', () => {
     ]);
     expect(phases.find((p) => p.title === 'Presentasi Kelompok')?.minutes).toBe(30);
     expect(phases.find((p) => p.title === 'Firman & Briefing')?.minutes).toBe(15);
-    expect(phases.find((p) => p.title === 'Firman & Briefing')?.notes || '').toMatch(/pencatat/);
+    expect(phases.find((p) => p.title === 'Firman & Briefing')?.notes || '').toMatch(/perwakilan/);
     expect(phases.find((p) => p.title === 'Persiapan Ruang & Perlengkapan')?.notes || '').toMatch(/kedatangan/);
     expect(phases.some((p) => /bag painting|pilih 2 pertanyaan|preaching/i.test(String(p.title)))).toBe(false);
     expect(patternPreMinutes(phases)).toBe(20);

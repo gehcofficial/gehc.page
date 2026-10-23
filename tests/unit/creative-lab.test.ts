@@ -11,11 +11,11 @@ import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName 
 import { codeFromMentoringHash, stepLabPresentation } from '../../src/lib/mentoring';
 
 describe('creative-lab: cleanActivity', () => {
-  it('null → null; kosong → default IDLE', () => {
+  it('null → null; kosong → default PRE', () => {
     expect(cleanActivity(null)).toBeNull();
     expect(cleanActivity('x')).toBeNull();
     expect(cleanActivity({})).toMatchObject({
-      phase: 'IDLE',
+      phase: 'PRE',
       showOnScreen: true,
       cardIndex: 0,
       presentIndex: 0,
@@ -148,7 +148,7 @@ describe('creative-lab: materialisasi draft', () => {
       pot: ['A', 'B'],
       bag: ['C', 'D'],
     });
-    expect(out.activity.phase).toBe('IDLE');
+    expect(out.activity.phase).toBe('PRE');
     expect(out.activity.durations).toEqual({ A1: 1200, A2: 1800, PRESENT: 90 });
   });
 

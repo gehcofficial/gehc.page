@@ -160,7 +160,8 @@ export function segmentForPattern(
   }
   // CREATIVE_LAB: segmen maju mengikuti fase panggung (A1 → A2 → PRESENT → DONE).
   if (c === 'CREATIVE_LAB') {
-    const phase = String((extra || {}).activityPhase || 'IDLE').toUpperCase();
+    const raw = String((extra || {}).activityPhase || 'PRE').toUpperCase();
+    const phase = raw === 'IDLE' ? 'BRIEFING' : raw;
     if (st === 'CLOSED') return 'penutup';
     if (st === 'WRAPUP') return 'refleksi';
     if (st === 'RUNNING') {
@@ -168,7 +169,6 @@ export function segmentForPattern(
       if (phase === 'A2') return 'aktivitas-2';
       if (phase === 'PRESENT') return 'presentasi';
       if (phase === 'DONE') return 'refleksi';
-      if (phase === 'DRAW') return 'briefing';
       return 'briefing';
     }
     return 'briefing';

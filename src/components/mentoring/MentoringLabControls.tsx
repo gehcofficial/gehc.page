@@ -62,6 +62,7 @@ export const MentoringLabControls: React.FC<Props> = ({
       status={status}
       busy={busy || lab.busy}
       activeActivityPhase={lab.activity.phase}
+      labStepContext={{ activity: lab.activity }}
       prefMin={prefMin}
       onRunStep={onRunStep}
       onClose={onClose}

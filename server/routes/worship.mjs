@@ -14,7 +14,7 @@ import { resolveHostContext } from '../lib/host-context.mjs';
 import { tenantForWrite } from '../lib/tenant-scope.mjs';
 import { YOUTH_TENANT_ID } from '../lib/tenant-defaults.mjs';
 import { applyFilmCap, classifyPoolRole, composePicks, mergeManualPicks, TESTIMONY_FILM_CAP, TESTIMONY_NEED_FILM, TESTIMONY_NEED_MONOLOG } from '../lib/testimony.mjs';
-import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, cleanActivity, creativeLabFromDraft, buildCreativeLabTeams, LAB_MAX_TEAMS, SEQUENCE_MAX_TEAMS, DEFAULT_MAX_TEAMS, matchJointTeam, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin } from '../lib/session-stage.mjs';
+import { cleanFgd, cleanLikertRounds, cleanPhase, cleanPhasePrefs, cleanRounds, cleanScreening, cleanSong, cleanTeams, cleanActivity, creativeLabFromDraft, buildCreativeLabTeams, defaultCreativeLabActivity, LAB_MAX_TEAMS, SEQUENCE_MAX_TEAMS, DEFAULT_MAX_TEAMS, matchJointTeam, defaultPhasePrefs, MONOLOG_PHASE_SECONDS, parseFilmDurationMin, mergeValidateAndStampLabActivity } from '../lib/session-stage.mjs';
 import { createFolder as driveCreateFolder, listAllFolders, findFoldersNamed, getFolderMeta, uploadFile as driveUploadFile, deleteFile as driveDeleteFile, getFileStream as driveGetFileStream, getDriveMode } from '../gdrive.mjs';
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../lib/lab-drive.mjs';
 import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
@@ -796,6 +796,8 @@ function buildRooms(ranked, totals, priorityCount, config) {
  */
 export async function ensureAutoState(prisma, session) {
   if (!session || session.status !== 'RUNNING' || !session.startedAt) return session;
+  const pcode = String(session.pattern?.code || '').toUpperCase();
+  if (pcode === 'CREATIVE_LAB') return session;
   const config = normalizeConfig(session.config, session.pattern?.code);
   const endsAtMs = new Date(session.startedAt).getTime() + config.timerSeconds * 1000;
   if (Date.now() < endsAtMs) return session;
@@ -1171,7 +1173,8 @@ export function registerWorshipRoutes(app, { wrap }) {
         affirmations: pcode === 'BEDAH_FILM' ? filmAffirm(config) : null,
         fgd: fgdState(config),
         phase: config.phase || null,
-        activity: pcode === 'CREATIVE_LAB' ? config.activity || null : null,
+        activity: pcode === 'CREATIVE_LAB' ? (config.activity || defaultCreativeLabActivity()) : null,
+        resetAt: config.resetAt ? String(config.resetAt).slice(0, 30) : null,
         activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(config) : null,
         jarCards: pcode === 'CREATIVE_LAB' ? jarCards(config) : [],
         lab: pcode === 'CREATIVE_LAB' ? {
@@ -2003,7 +2006,8 @@ export function registerWorshipRoutes(app, { wrap }) {
         fgd: fgdState(agg.config),
         phase: agg.config.phase || null,
         phasePrefs: agg.config.phasePrefs || null,
-        activity: pcode === 'CREATIVE_LAB' ? agg.config.activity || null : null,
+        activity: pcode === 'CREATIVE_LAB' ? (agg.config.activity || defaultCreativeLabActivity()) : null,
+        resetAt: agg.config.resetAt ? String(agg.config.resetAt).slice(0, 30) : null,
         activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null,
         jarCards: pcode === 'CREATIVE_LAB' ? jarCards(agg.config) : [],
         lab: liveLab,
@@ -2465,37 +2469,62 @@ export function registerWorshipRoutes(app, { wrap }) {
         data.startedAt = null;
         data.wrapUpAt = null;
         data.closedAt = null;
-        // Reset keras: hapus SEMUA isi audiens (jawaban/vote/catatan/undi)
-        // + panggung live (screening/phase/gate) agar tak ada sisa nyangkut
-        // (kasus: gate AKHIR OPEN tertinggal saat status DRAFT). Soal/chip
-        // master + config.draft dipertahankan — tak perlu Terapkan ulang.
+        const deleteErrors = [];
+        const tables = [
+          ['worshipLikertResponse', () => prisma.worshipLikertResponse.deleteMany({ where: { sessionId: session.id } })],
+          ['worshipChipVote', () => prisma.worshipChipVote.deleteMany({ where: { sessionId: session.id } })],
+          ['worshipNote', () => prisma.worshipNote.deleteMany({ where: { sessionId: session.id } })],
+          ['worshipLabUpdate', () => prisma.worshipLabUpdate.deleteMany({ where: { sessionId: session.id } })],
+        ];
+        for (const [name, run] of tables) {
+          try {
+            await run();
+          } catch (e) {
+            deleteErrors.push(`${name}: ${e instanceof Error ? e.message : 'gagal'}`);
+          }
+        }
+        if (deleteErrors.length) {
+          return res.status(500).json({
+            error: 'Reset gagal menghapus beberapa data audiens.',
+            details: deleteErrors,
+          });
+        }
         try {
-          const cfg = normalizeConfig(session.config);
+          const withPattern = await prisma.worshipSession.findUnique({
+            where: { id: session.id },
+            include: { pattern: { select: { code: true } } },
+          });
+          const pcode = String(withPattern?.pattern?.code || '').toUpperCase();
+          const cfg = normalizeConfig(session.config, pcode);
           cfg.testimony = null;
           cfg.screening = null;
           cfg.phase = null;
           cfg.fgd = null;
           cfg.likertRounds = null;
-          cfg.activity = null;
+          cfg.rounds = null;
+          cfg.phasePrefs = null;
+          cfg.labReactions = null;
+          cfg.labChipsOpen = false;
+          cfg.resetAt = new Date().toISOString();
+          cfg.activity = pcode === 'CREATIVE_LAB' ? defaultCreativeLabActivity() : null;
           if (cfg.teams && Array.isArray(cfg.teams.teams)) {
             cfg.teams = {
               ...cfg.teams,
-              teams: cfg.teams.teams.map((t) => ({ ...t, done: false })),
+              teams: cfg.teams.teams.map((t) => ({
+                ...t,
+                done: false,
+                scribe: '',
+                station: '',
+                pot: [],
+                bag: [],
+                repUserId: '',
+                repName: '',
+              })),
             };
           }
           data.config = cfg;
-        } catch {
-          /* abaikan — status tetap di-reset */
-        }
-        try {
-          await prisma.$transaction([
-            prisma.worshipLikertResponse.deleteMany({ where: { sessionId: session.id } }),
-            prisma.worshipChipVote.deleteMany({ where: { sessionId: session.id } }),
-            prisma.worshipNote.deleteMany({ where: { sessionId: session.id } }),
-            prisma.worshipLabUpdate.deleteMany({ where: { sessionId: session.id } }),
-          ]);
-        } catch {
-          /* abaikan — status tetap di-reset */
+        } catch (e) {
+          return res.status(500).json({ error: e instanceof Error ? e.message : 'Gagal mereset config sesi.' });
         }
       } else if (action === 'extend') {
         // Tambah waktu fleksibel (detik): preset +5/+60/+300 + custom, 5–1800.
@@ -3213,13 +3242,24 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
       if (b.activity !== undefined && b.teams === undefined) {
         if (b.activity === null) {
+          if (patternCode === 'CREATIVE_LAB') {
+            return res.status(400).json({ error: 'Aktivitas Creative Lab tidak boleh dikosongkan — gunakan Reset.' });
+          }
           cfg.activity = null;
           out.activity = null;
         } else {
           const cleaned = cleanActivity(b.activity);
           if (!cleaned) return res.status(400).json({ error: 'State aktivitas tidak valid.' });
-          cfg.activity = cleaned;
-          out.activity = cleaned;
+          if (patternCode === 'CREATIVE_LAB') {
+            const prev = cfg.activity ? cleanActivity(cfg.activity) : defaultCreativeLabActivity();
+            const merged = mergeValidateAndStampLabActivity(prev, cleaned);
+            if (merged.error) return res.status(409).json({ error: merged.error });
+            cfg.activity = merged.activity;
+            out.activity = merged.activity;
+          } else {
+            cfg.activity = cleaned;
+            out.activity = cleaned;
+          }
         }
       }
       if (b.fgd !== undefined) {

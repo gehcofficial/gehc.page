@@ -1,6 +1,6 @@
 import React from 'react';
 import type { MentoringStatus } from '../../lib/mentoring';
-import { dayFlowHintForPattern, phaseStepsForPattern } from '../../lib/didaskalia-phase-config';
+import { dayFlowHintForPattern, phaseStepsForPattern, type LabStepContext } from '../../lib/didaskalia-phase-config';
 import { DidaskaliaControlBar } from './DidaskaliaControlBar';
 
 export type DidaskaliaSessionControlsProps = {
@@ -20,6 +20,7 @@ export type DidaskaliaSessionControlsProps = {
   onResetStage?: () => void;
   statusExtra?: React.ReactNode;
   showDayFlow?: boolean;
+  labStepContext?: LabStepContext;
 };
 
 export const DidaskaliaSessionControls: React.FC<DidaskaliaSessionControlsProps> = ({
@@ -39,6 +40,7 @@ export const DidaskaliaSessionControls: React.FC<DidaskaliaSessionControlsProps>
   onResetStage,
   statusExtra,
   showDayFlow,
+  labStepContext,
 }) => {
   const steps = phaseStepsForPattern(patternCode, prefMin);
   const hint = dayFlowHintForPattern(patternCode);
@@ -49,18 +51,19 @@ export const DidaskaliaSessionControls: React.FC<DidaskaliaSessionControlsProps>
         const active =
           activePhaseKey === step.key ||
           (activeActivityPhase && activeActivityPhase === step.key);
-        const enabled = step.enabledWhen(status);
+        const enabled = step.enabledWhen(status, labStepContext);
         return (
           <button
             key={step.key}
             type="button"
             disabled={busy || !enabled}
+            title={enabled ? step.label : `${step.label} — selesaikan langkah sebelumnya`}
             onClick={() => onRunStep(step.key)}
             className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-60 ${
-              active ? 'ring-2 ring-offset-2 ring-brand bg-[#1B1B1B]' : 'bg-emerald-600'
+              active ? 'ring-2 ring-offset-2 ring-brand bg-[#1B1B1B]' : enabled ? 'bg-emerald-600' : 'bg-[#4a4a4a]'
             }`}
           >
-            {step.label}
+            {!enabled && !active ? '🔒 ' : ''}{step.label}
           </button>
         );
       })}

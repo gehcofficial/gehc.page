@@ -1,4 +1,7 @@
 import { parseCreativeLabDraft } from './creative-lab-draft.mjs';
+import { cleanLabCompleted, defaultLabCompleted, normalizeLabPhase } from './lab-step-gate.mjs';
+
+export { mergeValidateAndStampLabActivity, validateLabActivityTransition } from './lab-step-gate.mjs';
 
 /**
  * Status panggung sesi (modul rounds / screening / teams / fgd / song) — validasi murni.
@@ -344,11 +347,38 @@ export function cleanTeams(raw, opts = {}) {
 }
 
 /** Fase aktivitas CREATIVE_LAB (timer display-only, transisi manual). */
-export const ACTIVITY_PHASES = ['DRAW', 'IDLE', 'A1', 'A2', 'PRESENT', 'DONE'];
+export const ACTIVITY_PHASES = ['PRE', 'BRIEFING', 'DRAW', 'A1', 'A2', 'PRESENT', 'DONE', 'IDLE'];
 export const LAB_PRESENT_SLIDE_MAX = 7;
 
-/** Durasi baku tiap fase aktivitas (detik): A1 15', A2 25', presentasi ~2,5'/kelompok. */
-export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 150, DONE: 0 };
+/** Durasi baku tiap fase aktivitas (detik): briefing 15', A1 15', A2 25', presentasi ~2,5'/kelompok. */
+export const ACTIVITY_PHASE_SECONDS = {
+  PRE: 0, BRIEFING: 900, DRAW: 300, IDLE: 900, A1: 900, A2: 1500, PRESENT: 150, DONE: 0,
+};
+
+/** State awal panggung Creative Lab (pre-briefing: hanya judul tema di layar). */
+export function defaultCreativeLabActivity() {
+  return cleanActivity({
+    phase: 'PRE',
+    startedAt: null,
+    durationSec: ACTIVITY_PHASE_SECONDS.BRIEFING,
+    showOnScreen: true,
+    cardIndex: 0,
+    presentIndex: 0,
+    presentSlide: 0,
+    presentStartedAt: null,
+    presentSeconds: ACTIVITY_PHASE_SECONDS.PRESENT,
+    presentOrder: [],
+    presentSkipped: [],
+    presentPostponed: [],
+    presentDrawnAt: null,
+    completed: defaultLabCompleted(),
+    durations: {
+      A1: ACTIVITY_PHASE_SECONDS.A1,
+      A2: ACTIVITY_PHASE_SECONDS.A2,
+      PRESENT: ACTIVITY_PHASE_SECONDS.PRESENT,
+    },
+  });
+}
 
 /**
  * Normalisasi state panggung Creative Lab:
@@ -357,10 +387,9 @@ export const ACTIVITY_PHASE_SECONDS = { IDLE: 0, A1: 900, A2: 1500, PRESENT: 150
  */
 export function cleanActivity(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const phase = ACTIVITY_PHASES.includes(String(raw.phase || '').toUpperCase())
-    ? String(raw.phase).toUpperCase()
-    : 'IDLE';
-  const fallbackSec = ACTIVITY_PHASE_SECONDS[phase] || 0;
+  const startedAt = raw.startedAt ? String(raw.startedAt).slice(0, 30) : null;
+  const phase = normalizeLabPhase(raw.phase, startedAt);
+  const fallbackSec = ACTIVITY_PHASE_SECONDS[phase] || ACTIVITY_PHASE_SECONDS.A1;
   const durationSec = Math.min(7200, Math.max(60, Number(raw.durationSec) || fallbackSec || 60));
   const showOnScreen = raw.showOnScreen === undefined || raw.showOnScreen === null
     ? true
@@ -379,10 +408,12 @@ export function cleanActivity(raw) {
     .slice(0, LAB_MAX_TEAMS);
   const presentSkipped = idxFilter(raw.presentSkipped);
   const presentPostponed = idxFilter(raw.presentPostponed);
+  const completed = cleanLabCompleted(raw.completed);
   return {
     phase,
-    startedAt: raw.startedAt ? String(raw.startedAt).slice(0, 30) : null,
+    startedAt,
     durationSec,
+    completed,
     showOnScreen,
     cardIndex: Math.min(5, Math.max(0, Number(raw.cardIndex) || 0)),
     presentIndex: Math.min(LAB_PRESENT_INDEX_MAX, Math.max(0, Number(raw.presentIndex) || 0)),
@@ -451,8 +482,9 @@ export function creativeLabFromDraft(storedDraft) {
   return {
     teams: teams.length ? { teams } : null,
     activity: cleanActivity({
-      phase: 'IDLE',
+      phase: 'PRE',
       startedAt: null,
+      completed: defaultLabCompleted(),
       durationSec: ACTIVITY_PHASE_SECONDS.A1,
       showOnScreen: true,
       cardIndex: 0,

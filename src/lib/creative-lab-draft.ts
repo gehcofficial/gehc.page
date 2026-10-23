@@ -1,4 +1,5 @@
 import type { SessionActivityBrief } from './mentoring';
+import { normalizeLabPhase } from './lab-step-gate';
 
 export type PresentSlide = {
   activityIndex: number;
@@ -118,9 +119,10 @@ function slideForStation(
     : (String(a.stationMedia || '').trim() || a.title || `Aktivitas ${a.index}` || 'Stasiun A');
   const theme = isB ? (a.stationBTheme || '') : (a.stationTheme || '');
   const letter = isB ? 'B' : 'A';
+  const shortLabel = photoKind === 'POT' ? 'Pot' : photoKind === 'BAG' ? 'Bag' : `Slide Stasiun ${letter} · ${media}`;
   return {
     activityIndex: a.index,
-    label: `Slide Stasiun ${letter} · ${media}`,
+    label: shortLabel,
     media,
     theme,
     photoKind,
@@ -140,7 +142,7 @@ export function presentSlidePlan(brief?: SessionActivityBrief | null): PresentSl
       const letter = String.fromCharCode(65 + Math.min(slides.filter((s) => s.activityIndex === a.index).length, 25));
       slides.push({
         activityIndex: a.index,
-        label: `Slide Stasiun ${letter} · ${media}`,
+        label: media,
         media,
         theme: a.stationTheme || '',
         photoKind: `ACT${a.index}`,
@@ -150,7 +152,7 @@ export function presentSlidePlan(brief?: SessionActivityBrief | null): PresentSl
   }
   slides.push({
     activityIndex: 0,
-    label: 'Slide Bersama · Commitment',
+    label: 'Commitment',
     media: 'Commitment',
     theme: '',
     photoKind: 'COMMIT',
@@ -162,7 +164,7 @@ export function presentSlidePlan(brief?: SessionActivityBrief | null): PresentSl
     slideForStation({ index: 2, stationBMedia: 'Stasiun B' }, 'B', 'BAG'),
     {
       activityIndex: 0,
-      label: 'Slide Bersama · Commitment',
+      label: 'Commitment',
       media: 'Commitment',
       theme: '',
       photoKind: 'COMMIT',
@@ -175,12 +177,17 @@ export function presentSlideCount(brief?: SessionActivityBrief | null): number {
   return Math.max(0, presentSlidePlan(brief).length - 1);
 }
 
-/** Menit 1–10 briefing: hanya judul firman; menit 11–15: panggil perwakilan. */
-export function briefingFirmanOnly(phase: string, startedAt: string | null, nowMs: number): boolean {
-  if (String(phase || '').toUpperCase() !== 'IDLE') return false;
-  if (!startedAt) return true;
-  const elapsed = Math.max(0, nowMs - new Date(startedAt).getTime());
-  return elapsed < 10 * 60 * 1000;
+/** Layar proyektor: pre-briefing = judul tema saja; briefing/undian = instruksi + slot urutan. */
+export function labBriefingScreenMode(phase: string, startedAt?: string | null): 'pre-title' | 'briefing' | 'other' {
+  const p = normalizeLabPhase(phase, startedAt);
+  if (p === 'PRE') return 'pre-title';
+  if (p === 'BRIEFING' || p === 'DRAW') return 'briefing';
+  return 'other';
+}
+
+/** @deprecated Pakai labBriefingScreenMode */
+export function briefingFirmanOnly(phase: string, startedAt: string | null, _nowMs: number): boolean {
+  return labBriefingScreenMode(phase, startedAt) === 'pre-title';
 }
 
 export type LabArtStationSlot = {
