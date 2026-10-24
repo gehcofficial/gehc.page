@@ -54,9 +54,25 @@ describe('serving-week: caption', () => {
   it('undangan memuat penanggung, link, dan ajakan konfirmasi', () => {
     const t = buildServingInviteCaption({ date: '2026-10-18', waUrl: 'https://chat.whatsapp.com/X', invite: INVITE });
     expect(t).toContain('Echad');
+    expect(t).toContain('Tuan Rumah');
+    expect(t).toContain('Penanggung Jawab');
     expect(t).toContain('https://chat.whatsapp.com/X');
     expect(t).toContain('Konfirmasi');
     expect(t).toContain('TEMPORER');
+  });
+
+  it('undangan boleh menyertakan tautan BOD per domain', () => {
+    const t = buildServingInviteCaption({
+      date: '2026-10-18',
+      waUrl: 'https://chat.whatsapp.com/X',
+      invite: INVITE,
+      bodLinks: {
+        RESPONSIBLE: 'https://youth.gehc.page/#/portal/mentor/penatalayan-tautan?token=a&domain=RESPONSIBLE',
+        HOST: 'https://youth.gehc.page/#/portal/mentor/penatalayan-tautan?token=a&domain=HOST',
+      },
+    });
+    expect(t).toContain('domain=RESPONSIBLE');
+    expect(t).toContain('domain=HOST');
   });
 
   it('roster tanpa nomor HP; penutup berisi arsip + keluar', () => {

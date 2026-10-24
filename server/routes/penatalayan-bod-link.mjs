@@ -6,7 +6,13 @@ import { getPrisma } from '../db.mjs';
 import { requireRole } from '../auth.mjs';
 import { pushToUsers } from '../lib/notify.mjs';
 import { resolveWorshipEventByDate } from '../lib/service-events.mjs';
-import { rolesForPattern, resolveRoleKey, buildResponsibleGroupCaption } from '../lib/serving-role-catalog.mjs';
+import {
+  rolesForPattern,
+  resolveRoleKey,
+  buildResponsibleGroupCaption,
+  buildBodCaptionLinks,
+  ownerScopeForRoleKey,
+} from '../lib/serving-role-catalog.mjs';
 import { canManageBodLink, canFillBodLink, canAccessDivisionInbox } from '../lib/penatalayan-bod-access.mjs';
 import { listRequests } from '../lib/penatalayan-requests.mjs';
 import { buildSlotBoard, inferEventEndAt, progressFromSlots } from '../lib/penatalayan-bod-session.mjs';
@@ -177,10 +183,15 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const link = await loadLink(prisma, req.params.token);
       if (!link) return res.status(404).json({ error: 'Tautan tidak ditemukan.' });
-      if (!(await canFillBodLink(req.authUser, prisma, link))) {
+      const domain = String(req.query?.domain || '').toUpperCase();
+      if (!(await canFillBodLink(req.authUser, prisma, link, domain))) {
         return res.status(403).json({ error: 'Anda tidak memiliki akses mengisi tautan ini.' });
       }
       const session = await loadSession(prisma, link);
+      if (domain === 'HOST' || domain === 'RESPONSIBLE') {
+        session.slots = (session.slots || []).filter((s) => ownerScopeForRoleKey(s.roleKey) === domain);
+        session.domain = domain;
+      }
       const canManage = await canManageBodLink(req.authUser);
       res.json({ ...session, canManage, patternRoles: rolesForPattern(session.patternCode) });
     }),
@@ -194,7 +205,8 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
       const link = await loadLink(prisma, req.params.token);
       if (!link) return res.status(404).json({ error: 'Tautan tidak ditemukan.' });
-      if (!(await canFillBodLink(req.authUser, prisma, link))) {
+      const domain = String(req.body?.domain || req.query?.domain || '').toUpperCase();
+      if (!(await canFillBodLink(req.authUser, prisma, link, domain))) {
         return res.status(403).json({ error: 'Tidak boleh mengisi tautan ini.' });
       }
       const items = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -224,6 +236,18 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
         if (!serviceRoleId || !userId) {
           skipped.push({ ...it, reason: 'roleKey/serviceRoleId & userId wajib.' });
           continue;
+        }
+        if (domain === 'HOST' || domain === 'RESPONSIBLE') {
+          let rk = roleKey;
+          if (!rk) {
+            const roleRow = await prisma.serviceRole.findUnique({ where: { id: serviceRoleId }, select: { roleKey: true, name: true } }).catch(() => null);
+            rk = roleRow?.roleKey || resolveRoleKey(roleRow?.name);
+          }
+          const scope = ownerScopeForRoleKey(rk);
+          if (scope !== domain) {
+            skipped.push({ ...it, reason: `Peran di luar domain ${domain}.` });
+            continue;
+          }
         }
         if (await hasActiveSchedule(prisma, serviceRoleId, serviceDate)) {
           skipped.push({ ...it, reason: 'Role sudah terisi.' });
@@ -314,13 +338,25 @@ export function registerPenatalayanBodLinkRoutes(app, { wrap }) {
         : null;
       const resolved = await resolvePairForBodLink(prisma, { event, link });
       const { hostGroup, responsibleGroup, source, warnings } = pairNamesForCaption(resolved || {});
+      const publicBaseUrl = String(process.env.APP_URL || 'https://youth.gehc.page').replace(/\/$/, '');
+      const divisionInboxUrl = `${publicBaseUrl}/#/portal/mentor/division-inbox`;
       const text = buildResponsibleGroupCaption({
         dateLabel,
+        eventName: session.event?.name || link.eventId,
         hostGroup,
         responsibleGroup,
         patternCode: session.patternCode,
+        token: link.token,
+        publicBaseUrl,
+        divisionInboxUrl,
+        progress: session.progress,
       });
-      res.json({ caption: text, progress: session.progress, pairSource: source, warnings });
+      const links = buildBodCaptionLinks({
+        token: link.token,
+        publicBaseUrl,
+        divisionInboxUrl,
+      });
+      res.json({ caption: text, links, progress: session.progress, pairSource: source, warnings });
     }),
   );
 

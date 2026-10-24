@@ -6,6 +6,7 @@ import { SERVING_PAIRS, resolvePairIds, resolvePairIdsDb } from '../lib/serving-
 import { applyServingBackfill, planServingBackfill } from '../lib/serving-backfill.mjs';
 import { listOverrides } from '../lib/service-overrides.mjs';
 import { buildExpectedCycleIndexMap } from '../lib/serving-week-expectations.mjs';
+import { autoHealServingCycleIndexes, rebaseServingFromExpectedMap } from '../lib/serving-auto-heal.mjs';
 
 function toDateOnly(d) {
   if (!d) return null;
@@ -141,6 +142,12 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
       const specials = [];
       servingSundays.sort((a, b) => a.getTime() - b.getTime());
       const expectedByIso = await buildExpectedCycleIndexMap(prisma, from, to, byDate);
+      const autoHealed = await autoHealServingCycleIndexes(prisma, {
+        rows,
+        expectedByIso,
+        overrides,
+        todayISO,
+      });
       for (const s of servingSundays) {
         const iso = s.toISOString().slice(0, 10);
         const ov = overrides.get(iso);
@@ -158,6 +165,7 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
               if (expectedGeser != null) moved._expectedCycleIndex = expectedGeser;
               if (expectedGeser != null && !moved.isSwapped && moved.cycleIndex !== expectedGeser && iso >= todayISO) {
                 moved._needsSync = true;
+                moved._needsManualSync = true;
               }
               specials.push({
                 ...moved,
@@ -216,8 +224,10 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
         const real = byDate.get(iso);
         if (real) {
           if (expected != null) real._expectedCycleIndex = expected;
-          if (expected != null && !real.isSwapped && real.cycleIndex !== expected && iso >= todayISO) {
-            real._needsSync = true; // badge review + kandidat rebase
+          if (real.isSwapped) {
+            real._needsManualSync = true;
+          } else if (expected != null && real.cycleIndex !== expected && iso >= todayISO) {
+            real._needsManualSync = true;
           }
           continue;
         }
@@ -237,11 +247,13 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
           isVirtual: true,
         });
       }
+      const healedSet = new Set(autoHealed.map((h) => h.assignmentId));
       const serializeRow = (r) => ({
         ...r,
         eventDate: r.eventDate,
         expectedCycleIndex: r._expectedCycleIndex ?? null,
-        needsSync: Boolean(r._needsSync),
+        needsSync: Boolean(r._needsManualSync),
+        autoHealed: healedSet.has(r.id),
         override: r._override || null,
         geserFrom: r._geserFrom || null,
       });
@@ -257,6 +269,7 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
         virtual,
         specials,
         overrides: [...overrides.entries()].map(([eventDate, o]) => ({ eventDate, ...o })),
+        autoHealed,
         horizon,
         from: from?.toISOString().slice(0, 10),
         to: to?.toISOString().slice(0, 10),
@@ -345,33 +358,9 @@ export function registerServingAssignmentRoutes(app, { wrap }) {
     wrap(async (req, res) => {
       const prisma = getPrisma();
       if (!prisma) return res.status(503).json({ error: 'DATABASE_URL belum dikonfigurasi.' });
-      const todayISO = new Date().toISOString().slice(0, 10);
-      const fromParam = toDateOnly(req.body?.from) || new Date(`${todayISO}T00:00:00Z`);
-      const liburDates = await prisma.$queryRawUnsafe(
-        "SELECT event_date AS eventDate FROM service_week_overrides WHERE `condition` IN ('LIBUR','ALIH')",
-      ).then((rows) => new Set((rows || []).map((r) => String(r.eventDate instanceof Date ? r.eventDate.toISOString().slice(0, 10) : r.eventDate).slice(0, 10)))).catch(() => new Set());
-      if (!liburDates.size) return res.json({ ok: true, updated: 0, note: 'Tidak ada minggu LIBUR/ALIH.' });
-
-      const startCount = await prisma.servingAssignment.count({ where: { eventDate: { lt: fromParam } } }).catch(() => 0);
-      const rows = await prisma.servingAssignment.findMany({
-        where: { eventDate: { gte: fromParam } },
-        orderBy: { eventDate: 'asc' },
-        take: 200,
-      });
-      let seq = 0;
-      const ops = [];
-      for (const row of rows) {
-        const iso = new Date(row.eventDate).toISOString().slice(0, 10);
-        if (liburDates.has(iso)) continue; // minggu override: biarkan manual, tidak consume
-        const expected = (startCount + seq) % 10;
-        seq += 1;
-        if (iso < todayISO || row.isSwapped) continue; // riwayat & swap: manual
-        if (row.cycleIndex !== expected) {
-          ops.push(prisma.servingAssignment.update({ where: { id: row.id }, data: { cycleIndex: expected } }));
-        }
-      }
-      if (ops.length) await prisma.$transaction(ops);
-      res.json({ ok: true, updated: ops.length, from: fromParam.toISOString().slice(0, 10) });
+      const fromParam = toDateOnly(req.body?.from) || new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+      const result = await rebaseServingFromExpectedMap(prisma, fromParam);
+      res.json({ ok: true, updated: result.updated, healed: result.healed, from: result.from });
     })
   );
 }

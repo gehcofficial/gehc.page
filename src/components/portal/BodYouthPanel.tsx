@@ -35,6 +35,7 @@ export const BodYouthPanel: React.FC = () => {
   const [eventId, setEventId] = useState('');
   const [linkToken, setLinkToken] = useState(hashToken);
   const [caption, setCaption] = useState<string | null>(null);
+  const [captionLinks, setCaptionLinks] = useState<{ RESPONSIBLE?: string; HOST?: string; divisionInbox?: string } | null>(null);
   const [captionBusy, setCaptionBusy] = useState(false);
   const [captionMsg, setCaptionMsg] = useState<string | null>(null);
 
@@ -98,6 +99,7 @@ export const BodYouthPanel: React.FC = () => {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Gagal memuat caption.');
       setCaption(String(d.caption || ''));
+      setCaptionLinks((d.links as typeof captionLinks) || null);
       setCaptionMsg('Caption siap disalin.');
     } catch (e) {
       setCaption(null);
@@ -125,6 +127,7 @@ export const BodYouthPanel: React.FC = () => {
             setEventId(e.target.value);
             setLinkToken('');
             setCaption(null);
+            setCaptionLinks(null);
           }}
           className="w-full rounded-xl border border-[#D9D7D0] bg-white px-3 py-2 text-[12px] font-semibold text-[#1B1B1B]"
         >
@@ -206,7 +209,25 @@ export const BodYouthPanel: React.FC = () => {
                 onClick={() => void navigator.clipboard?.writeText(caption)}
                 className="px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold"
               >
-                Salin ke clipboard
+                Salin caption lengkap
+              </button>
+            )}
+            {captionLinks?.RESPONSIBLE && (
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard?.writeText(captionLinks.RESPONSIBLE!)}
+                className="px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold"
+              >
+                Salin link Penanggung Jawab
+              </button>
+            )}
+            {captionLinks?.HOST && (
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard?.writeText(captionLinks.HOST!)}
+                className="px-3 py-1.5 rounded-xl border border-[#D9D7D0] text-[11px] font-bold"
+              >
+                Salin link Tuan Rumah
               </button>
             )}
           </div>

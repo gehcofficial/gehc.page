@@ -12,4 +12,9 @@ describe('penatalayan BOD link UI helpers', () => {
       'https://staging-youth.gehc.page/#/portal/mentor/penatalayan-tautan?token=x',
     );
   });
+
+  it('menyertakan query domain bila diminta', () => {
+    expect(penatalayanBodLinkHash('t', 'mentor', 'HOST')).toContain('domain=HOST');
+    expect(penatalayanBodLinkUrl('t', 'https://youth.gehc.page', 'RESPONSIBLE')).toContain('domain=RESPONSIBLE');
+  });
 });

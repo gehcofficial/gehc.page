@@ -307,6 +307,20 @@ export const SERVING_ROLE_CATALOG = [
 
 const catalogByKey = new Map(SERVING_ROLE_CATALOG.map((r) => [r.key, r]));
 
+const HOST_DIVISIONS = new Set(['KOINONIA', 'DIAKONIA']);
+
+/** Domain penatalayan: HOST (tuan rumah) vs RESPONSIBLE (penanggung jawab). */
+export function ownerScopeForDivision(division) {
+  return HOST_DIVISIONS.has(String(division || '').toUpperCase()) ? 'HOST' : 'RESPONSIBLE';
+}
+
+export function ownerScopeForRoleKey(roleKey) {
+  const cat = catalogByKey.get(String(roleKey || ''));
+  if (!cat) return 'RESPONSIBLE';
+  if (cat.ownerScope === 'HOST' || cat.ownerScope === 'RESPONSIBLE') return cat.ownerScope;
+  return ownerScopeForDivision(cat.division);
+}
+
 /** Lepas sufiks nama orang: "Liturgist - Shyllo" → "Liturgist". */
 export function stripPersonSuffix(raw) {
   const s = String(raw || '').trim();
@@ -476,6 +490,7 @@ export function rolesForPattern(patternCode) {
       roleKey: row.roleKey,
       name: cat.labelId,
       division: cat.division,
+      ownerScope: ownerScopeForRoleKey(row.roleKey),
       optional,
       note: row.note || '',
     };
@@ -485,27 +500,82 @@ export function rolesForPattern(patternCode) {
 /** Backward compat: Creative Lab default list. */
 export const WORSHIP_ORDER_ROLES = rolesForPattern('CREATIVE_LAB');
 
-export function buildResponsibleGroupCaption(opts) {
-  const pattern = opts.patternCode || 'CREATIVE_LAB';
-  const roles = rolesForPattern(pattern);
-  const lines = [
-    `Shalom mentor dan co-mentor ${opts.responsibleGroup || 'kelompok penanggung'}.`,
-    `Ibadah ${opts.dateLabel}. Tuan rumah: ${opts.hostGroup || '—'}.`,
-    '',
-    'Peran mengikuti urutan pola ibadah. Musik tidak wajib dan tergantung kesediaan.',
-    'Koordinasikan pendekatan serta jadwal dengan Liturgia, termasuk anggota di luar kelompok yang bertugas.',
-    'Tuan rumah mengisi nama pada tiap peran. Mentor dan co-mentor setiap kelompok melihat daftar yang sama.',
-    '',
-  ];
+function roleLinesForScope(roles, scope) {
+  const lines = [];
   let segment = '';
-  for (const role of roles) {
+  for (const role of roles.filter((r) => r.ownerScope === scope)) {
     if (role.segment !== segment) {
       lines.push(role.segment);
       segment = role.segment;
     }
-    lines.push(`• ${role.name}${role.optional ? ' (opsional)' : ''} — ${role.division}: ____`);
+    lines.push(`• ${role.name}${role.optional ? ' (opsional)' : ''} — ____`);
   }
+  return lines;
+}
+
+function bodLinkAbsolute(publicBaseUrl, token, domain) {
+  const base = String(publicBaseUrl || 'https://youth.gehc.page').replace(/\/$/, '');
+  const q = `token=${encodeURIComponent(String(token || ''))}&domain=${domain}`;
+  return `${base}/#/portal/mentor/penatalayan-tautan?${q}`;
+}
+
+/**
+ * Caption WA Panel BOD — header + dua seksi domain + link kotak masuk divisi.
+ */
+export function buildResponsibleGroupCaption(opts) {
+  const pattern = String(opts.patternCode || 'CREATIVE_LAB').toUpperCase();
+  const roles = rolesForPattern(pattern);
+  const hostGroup = opts.hostGroup || '—';
+  const responsibleGroup = opts.responsibleGroup || '—';
+  const eventName = opts.eventName ? String(opts.eventName) : '';
+  const filled = Number(opts.progress?.filled) || 0;
+  const total = Number(opts.progress?.required) || roles.filter((r) => !r.optional).length;
+
+  const lines = [
+    `Shalom! Penatalayan Ibadah ${opts.dateLabel || 'pekan ini'}${eventName ? ` — ${eventName}` : ''}`,
+    `🏠 Tuan Rumah: ${hostGroup}   |   🎯 Penanggung Jawab: ${responsibleGroup}`,
+    '',
+  ];
+
+  if (opts.token && opts.publicBaseUrl) {
+    lines.push(
+      `🎯 PENANGGUNG JAWAB — ${responsibleGroup} (mentor & co-mentor)`,
+      'Isi peran Liturgia · Didaskalia · Marturia di sini:',
+      bodLinkAbsolute(opts.publicBaseUrl, opts.token, 'RESPONSIBLE'),
+      ...roleLinesForScope(roles, 'RESPONSIBLE'),
+      '',
+      `🏠 TUAN RUMAH — ${hostGroup} (mentor & co-mentor)`,
+      'Isi peran Koinonia · Diakonia di sini:',
+      bodLinkAbsolute(opts.publicBaseUrl, opts.token, 'HOST'),
+      ...roleLinesForScope(roles, 'HOST'),
+      '',
+      `HOD Divisi: setujui usulan di Kotak Masuk Divisi: ${opts.divisionInboxUrl || `${String(opts.publicBaseUrl).replace(/\/$/, '')}/#/portal/mentor/division-inbox`}`,
+      `Musik tidak wajib, tergantung kesediaan. Progres: ${filled}/${total} peran.`,
+    );
+  } else {
+    lines.push(
+      '🎯 PENANGGUNG JAWAB — peran Liturgia · Didaskalia · Marturia:',
+      ...roleLinesForScope(roles, 'RESPONSIBLE'),
+      '',
+      '🏠 TUAN RUMAH — peran Koinonia · Diakonia:',
+      ...roleLinesForScope(roles, 'HOST'),
+      '',
+      'Musik tidak wajib, tergantung kesediaan.',
+      `Progres: ${filled}/${total} peran.`,
+    );
+  }
+
   return lines.join('\n').trim();
+}
+
+export function buildBodCaptionLinks(opts) {
+  if (!opts?.token || !opts?.publicBaseUrl) return null;
+  const base = String(opts.publicBaseUrl).replace(/\/$/, '');
+  return {
+    RESPONSIBLE: bodLinkAbsolute(base, opts.token, 'RESPONSIBLE'),
+    HOST: bodLinkAbsolute(base, opts.token, 'HOST'),
+    divisionInbox: opts.divisionInboxUrl || `${base}/#/portal/mentor/division-inbox`,
+  };
 }
 
 /** Seed rows untuk service_roles (tanpa id). */
@@ -520,5 +590,6 @@ export function catalogSeedRows() {
     description: r.description || '',
     checklist: r.checklist || null,
     isRequired: r.isRequired,
+    ownerScope: ownerScopeForRoleKey(r.key),
   }));
 }
