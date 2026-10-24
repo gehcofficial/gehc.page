@@ -19,6 +19,7 @@ import { createFolder as driveCreateFolder, listAllFolders, findFoldersNamed, ge
 import { bucketForPhotoKind, pickEventFolder, pickFolderByName, plainFolderName } from '../lib/lab-drive.mjs';
 import { hasUserDriveToken } from '../lib/gdrive-user-oauth.mjs';
 import { canonicalCreativeLabPhases, legacyCreativeLabHits, presentWorshipPattern } from '../lib/creative-lab-rundown.mjs';
+import { mergeStudioIntoLabBrief } from '../lib/creative-lab-studio.mjs';
 import {
   jarCardsFromDraft,
   creativeLabBriefFromDraft,
@@ -1175,7 +1176,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         phase: config.phase || null,
         activity: pcode === 'CREATIVE_LAB' ? (config.activity || defaultCreativeLabActivity()) : null,
         resetAt: config.resetAt ? String(config.resetAt).slice(0, 30) : null,
-        activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(config) : null,
+        activityBrief: pcode === 'CREATIVE_LAB' ? await mergeStudioIntoLabBrief(prisma, live, creativeLabBrief(config)) : null,
         jarCards: pcode === 'CREATIVE_LAB' ? jarCards(config) : [],
         lab: pcode === 'CREATIVE_LAB' ? {
           teamIndex: myLabTeam?.index ?? null,
@@ -1980,7 +1981,9 @@ export function registerWorshipRoutes(app, { wrap }) {
       const expected = agg.config.expectedCount || (await youthUserCount(prisma));
       const pcode = String(liveState.pattern?.code || session.pattern?.code || '').toUpperCase();
       const liveLabRows = pcode === 'CREATIVE_LAB' ? await labRows(prisma, liveState.id) : [];
-      const liveBrief = pcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null;
+      const liveBrief = pcode === 'CREATIVE_LAB'
+        ? await mergeStudioIntoLabBrief(prisma, liveState, creativeLabBrief(agg.config))
+        : null;
       const liveLab = pcode === 'CREATIVE_LAB'
         ? {
           ...labSummary(liveLabRows, agg.config.teams?.teams || [], agg.config.activity, liveBrief),
@@ -2008,7 +2011,7 @@ export function registerWorshipRoutes(app, { wrap }) {
         phasePrefs: agg.config.phasePrefs || null,
         activity: pcode === 'CREATIVE_LAB' ? (agg.config.activity || defaultCreativeLabActivity()) : null,
         resetAt: agg.config.resetAt ? String(agg.config.resetAt).slice(0, 30) : null,
-        activityBrief: pcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null,
+        activityBrief: pcode === 'CREATIVE_LAB' ? await mergeStudioIntoLabBrief(prisma, liveState, creativeLabBrief(agg.config)) : null,
         jarCards: pcode === 'CREATIVE_LAB' ? jarCards(agg.config) : [],
         lab: liveLab,
         testimony: Array.isArray(agg.config.testimony?.picks) ? agg.config.testimony.picks : [],
@@ -2274,7 +2277,9 @@ export function registerWorshipRoutes(app, { wrap }) {
       const controlPcode = String(liveSession.pattern?.code || '').toUpperCase();
       const controlLabRows = controlPcode === 'CREATIVE_LAB' ? await labRows(prisma, liveSession.id) : [];
       const controlNamed = controlPcode === 'CREATIVE_LAB' ? await labRowsWithNames(prisma, controlLabRows) : [];
-      const controlBrief = controlPcode === 'CREATIVE_LAB' ? creativeLabBrief(agg.config) : null;
+      const controlBrief = controlPcode === 'CREATIVE_LAB'
+        ? await mergeStudioIntoLabBrief(prisma, liveSession, creativeLabBrief(agg.config))
+        : null;
       const controlLab = controlPcode === 'CREATIVE_LAB'
         ? {
             ...stampLabUploaders(labSummary(controlLabRows, agg.config.teams?.teams || [], agg.config.activity, controlBrief), controlNamed),
@@ -2823,7 +2828,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       if (!cfg.draft) return res.status(400).json({ error: 'Draft kosong — isi form dulu.' });
       // MONOLOG & BEDAH_FILM: buat chip Lesson Learned dari section `lesson` draft (maks 10).
       let lessonChips = [];
-      if (sessionPattern === 'MONOLOG' || sessionPattern === 'BEDAH_FILM') {
+      if (sessionPattern === 'MONOLOG' || sessionPattern === 'BEDAH_FILM' || sessionPattern === 'CREATIVE_LAB') {
         const lesson = b.storedDraft?.lesson && typeof b.storedDraft.lesson === 'object' ? b.storedDraft.lesson : {};
         lessonChips = Array.from({ length: 10 }, (_, i) => String(lesson[`lesson-chip-${i + 1}`] || '').trim())
           .filter(Boolean)
@@ -3358,7 +3363,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       const brief = creativeLabBrief(config);
       const summary = labSummary(rows, teams, config.activity, brief);
       const mediaA = brief.a2.stationA.media || 'Pot';
-      const mediaB = brief.a2.stationB.media || 'Tas';
+      const mediaB = brief.a2.stationB.media || 'Bag';
       const headers = [
         'Kelompok', 'Perwakilan', 'JumlahAnggota', 'Status',
         `MaknaStasiunA (${mediaA})`, 'ProgressStasiunA', 'FotoStasiunA1', 'FotoStasiunA2',

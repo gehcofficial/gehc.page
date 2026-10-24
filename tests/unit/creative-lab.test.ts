@@ -204,7 +204,8 @@ describe('creative-lab: payload peserta & layar', () => {
     const empty = creativeLabBrief({});
     expect(empty.a1.title).toBe('Sesi 1');
     expect(empty.a2.title).toBe('Sesi 2');
-    expect(empty.a2.stationA.media).toBe('Stasiun A');
+    expect(empty.a2.stationA.media).toBe('Pot');
+    expect(empty.a2.stationB.media).toBe('Bag');
     expect(empty.present.seconds).toBe(150);
   });
 

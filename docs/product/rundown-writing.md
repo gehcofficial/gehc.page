@@ -34,6 +34,6 @@ Post-to-Post tidak punya blok persembahan; doa singkat tetap di catatan `Wrap-up
 
 `Konklusi` menggantikan Conclusion dan judul panjang `Transisi — konklusi…`.
 
-Kontrol Creative Lab hari-H: urutan ketat Briefing → Undian (tombol terpisah) → Sesi 1 → Sesi 2 → Presentasi; layar pre-briefing hanya judul tema; nama perwakilan hanya di Sesi 2; slide Pot · Bag · Commitment.
+Kontrol Creative Lab hari-H: urutan ketat **Start Sesi** (10′ tema + Teks Utama dari Studio) → **Briefing** (5′, undian + nama perwakilan di panel kontrol saja) → Sesi 1 → Sesi 2 → Presentasi (urutan tampil 1′ lalu slide) → Konklusi Lesson Learned (chip); hasil undian tidak di layar; nama perwakilan hanya di Sesi 2 di HP/layar; slide Pot · Bag · Commitment.
 
 Menit, owner, dan divisi tidak diubah saat hanya merapikan judul, kecuali dua hal yang sudah ditetapkan. Creative Lab: Praise & Worship 10, Firman & Briefing 15, Sesi 1 · Reminder Jar 15, Sesi 2 · Art Stations 25, Presentasi Kelompok 30, Konklusi 10, Persembahan & Doa 10, Lagu & Doa Penutup 5, lalu pasca yang sama dengan Monolog: Terima Kasih & Pengumuman 5, HUT & Doa 5, Foto Bersama 5, Acara Bebas & Pulang 5. PRA tetap 20. Jemaat 140 menit. Total baku 160 menit. Timer sesi 8400 detik. Mission Sequence: Konklusi 10 (firman penutup), Penutup Sesi · Commissioning & Deklarasi 10, lalu liturgi baku 10 + 5. Total baku 120 menit.

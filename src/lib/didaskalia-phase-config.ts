@@ -15,7 +15,7 @@ const includes = (status: MentoringStatus, ...allowed: MentoringStatus[]) =>
   allowed.includes(status);
 
 export const CREATIVE_LAB_DAY_FLOW =
-  'Briefing (instruksi + tombol Undian terpisah) → Sesi 1 (Reminder Jar 15′) → Sesi 2 (Art Stations 25′) → Presentasi Kelompok → Konklusi → Buka Satu Kata. Timer display-only; transisi manual berurutan.';
+  'Start Sesi (tema + Teks Utama 10′) → Briefing (5′, undian + perwakilan di panel) → Sesi 1 → Sesi 2 → Presentasi (urutan 1′ lalu slide) → Konklusi Lesson Learned + kunci layar. Timer display-only; transisi manual berurutan.';
 
 export function monologPhaseSteps(prefMin: (key: string) => number): DidaskaliaPhaseStep[] {
   return [
@@ -42,16 +42,22 @@ export function creativeLabPhaseSteps(): DidaskaliaPhaseStep[] {
   const labEnabled = (key: string) => (_s: MentoringStatus, lab?: LabStepContext) =>
     canEnableLabRunnerKey(key, lab?.activity);
   return [
-    { key: 'BRIEFING', label: 'Briefing', enabledWhen: labEnabled('BRIEFING') },
-    { key: 'DRAW', label: 'Undian', enabledWhen: labEnabled('DRAW') },
+    { key: 'START', label: 'Start Sesi · 10′', enabledWhen: labEnabled('START') },
+    { key: 'BRIEFING', label: 'Briefing · 5′', enabledWhen: labEnabled('BRIEFING') },
     { key: 'A1', label: 'Sesi 1', enabledWhen: labEnabled('A1') },
     { key: 'A2', label: 'Sesi 2', enabledWhen: labEnabled('A2') },
     { key: 'PRESENT', label: 'Presentasi', enabledWhen: labEnabled('PRESENT') },
     {
-      key: 'WRAPUP',
-      label: 'Buka Satu Kata',
+      key: 'CHIPS',
+      label: 'Buka Lesson Learned',
       enabledWhen: (s, lab) =>
-        (s === 'RUNNING' || s === 'WRAPUP') && canEnableLabRunnerKey('WRAPUP', lab?.activity),
+        (s === 'RUNNING' || s === 'WRAPUP') && canEnableLabRunnerKey('CHIPS', lab?.activity),
+    },
+    {
+      key: 'LOCK',
+      label: 'Kunci layar',
+      enabledWhen: (s, lab) =>
+        (s === 'RUNNING' || s === 'WRAPUP') && canEnableLabRunnerKey('LOCK', lab?.activity),
     },
   ];
 }

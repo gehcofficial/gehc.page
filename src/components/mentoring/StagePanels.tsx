@@ -703,7 +703,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
   const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
   const [savedTeamNames, setSavedTeamNames] = useState('');
   const [participantsReady, setParticipantsReady] = useState(false);
-  const [stations, setStations] = useState({ a: 'Pot', b: 'Tas' });
+  const [stations, setStations] = useState({ a: 'Pot', b: 'Bag' });
   const [labBrief, setLabBrief] = useState(() => sessionBriefFromStoredDraft(null));
   const slidePlan = useMemo(() => presentSlidePlan(labBrief), [labBrief]);
   const slideMax = useMemo(() => presentSlideCount(labBrief), [labBrief]);
@@ -734,7 +734,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
       const a2 = draft['activity-2'] && typeof draft['activity-2'] === 'object' ? draft['activity-2'] : {};
       setStations({
         a: String(a2['a2-station-media'] || a2['a2-a-media'] || '').trim() || 'Pot',
-        b: String(a2['a2-b-media'] || '').trim() || 'Tas',
+        b: String(a2['a2-b-media'] || '').trim() || 'Bag',
       });
       const jar = cfg.draft?.jar && typeof cfg.draft.jar === 'object' ? cfg.draft.jar : {};
       setCards(
@@ -836,6 +836,11 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
   };
 
   const drawOrder = () => {
+    const labPhase = String(activity.phase || 'PRE').toUpperCase();
+    if (labPhase !== 'BRIEFING' && labPhase !== 'DRAW') {
+      setMsg('Undian urutan hanya saat fase Briefing.');
+      return;
+    }
     if (!namedTeamCount) {
       setMsg('Muat 10 kelompok dulu sebelum mengundi.');
       return;
@@ -846,7 +851,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    void pushActivity({ presentOrder: arr, presentDrawnAt: new Date().toISOString(), presentIndex: 0, presentSlide: 0 }, 'Urutan presentasi diundi dan tampil di layar.');
+    void pushActivity({ presentOrder: arr, presentDrawnAt: new Date().toISOString(), presentIndex: 0, presentSlide: 0 }, 'Undian selesai — isi perwakilan, lalu mulai Sesi 1.');
   };
 
   const moveOrder = (index: number, delta: number) => {
@@ -1133,17 +1138,6 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
               </p>
               <p className="font-mono text-3xl font-black leading-none">{fmtLabClock(remainingMs)}</p>
             </div>
-            {!hideControlBar && (
-              <div className="flex flex-wrap gap-1.5 justify-end">
-                <button type="button" disabled={busy} onClick={startDraw} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Undian</button>
-                <button type="button" disabled={busy} onClick={startBriefing} className="px-3 py-1.5 rounded-lg bg-white/10 text-[11px] font-bold disabled:opacity-60">Briefing</button>
-                <button type="button" disabled={busy} onClick={() => startPhase('A1')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 1</button>
-                <button type="button" disabled={busy} onClick={() => startPhase('A2')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-[11px] font-bold disabled:opacity-60">Sesi 2</button>
-                <button type="button" disabled={busy} onClick={startPresent} className="px-3 py-1.5 rounded-lg bg-brand text-[11px] font-bold disabled:opacity-60">Presentasi</button>
-                <button type="button" disabled={busy} onClick={stopTimer} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Stop timer</button>
-                <button type="button" disabled={busy} onClick={resetStage} className="px-3 py-1.5 rounded-lg border border-white/30 text-[11px] font-bold disabled:opacity-60">Reset panggung</button>
-              </div>
-            )}
           </div>
 
           {activity.phase === 'PRESENT' && (
@@ -1171,7 +1165,12 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
               <span className="text-[10px] text-[#8C8880]">
                 {activity.presentDrawnAt ? `diundi ${new Date(activity.presentDrawnAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'belum diundi'}
               </span>
-              <button type="button" disabled={busy || !namedTeamCount} onClick={drawOrder} className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand text-white text-[11px] font-bold disabled:opacity-60">
+              <button
+                type="button"
+                disabled={busy || !namedTeamCount || !['BRIEFING', 'DRAW'].includes(String(activity.phase || '').toUpperCase())}
+                onClick={drawOrder}
+                className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand text-white text-[11px] font-bold disabled:opacity-60"
+              >
                 <Dices className="w-3.5 h-3.5" /> {activity.presentOrder.length ? 'Undi ulang' : 'Undi urutan'}
               </button>
             </div>
@@ -1180,7 +1179,20 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
                 <div key={`${teamIndex}-${pos}`} className={`flex flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 ${pos === activity.presentIndex && activity.phase === 'PRESENT' ? 'bg-brand/10 border border-brand/30' : 'bg-[#FAF9F5]'}`}>
                   <span className="w-5 h-5 rounded-full bg-white border border-[#D9D7D0] text-[10px] font-black grid place-items-center">{pos + 1}</span>
                   <span className="text-xs font-bold truncate">{teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`}</span>
-                  {teams[teamIndex]?.repName && <span className="text-[10px] text-[#8C8880] truncate">· {teams[teamIndex].repName}</span>}
+                  {['BRIEFING', 'DRAW'].includes(String(activity.phase || '').toUpperCase()) ? (
+                    <select
+                      value={teams[teamIndex]?.repUserId || ''}
+                      onChange={(e) => selectRep(teamIndex, e.target.value)}
+                      className="text-[10px] max-w-[140px] rounded border border-[#D9D7D0] px-1 py-0.5"
+                    >
+                      <option value="">Perwakilan…</option>
+                      {membersOf(teams[teamIndex] || labEmptyTeam()).map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    teams[teamIndex]?.repName && <span className="text-[10px] text-[#8C8880] truncate">· {teams[teamIndex].repName}</span>
+                  )}
                   {postponedSet.has(teamIndex) && <span className="text-[9px] font-black uppercase text-amber-700">ditunda</span>}
                   {skippedSet.has(teamIndex) && <span className="text-[9px] font-black uppercase text-red-600">skip</span>}
                   <span className="ml-auto flex gap-0.5">
@@ -1201,7 +1213,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
                 </div>
               ))}
             </div>
-            <p className="mt-1.5 text-[10px] text-[#8C8880]">Undian dilakukan di kontrol; peserta & layar mengikuti urutan ini. Tunda = ke belakang antrian; Skip = tidak presentasi.</p>
+            <p className="mt-1.5 text-[10px] text-[#8C8880]">Undian hanya di kontrol (hasil tidak di layar). Urutan di sini untuk admin; Tunda = ke belakang antrian; Skip = tidak presentasi.</p>
             {(activity.phase === 'DONE' || activity.phase === 'PRESENT') && (
               <button type="button" disabled={busy} onClick={() => void releaseLabReactions()} className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#1B1B1B] text-white text-[11px] font-bold disabled:opacity-60">
                 Rilis reaksi presentasi → word cloud

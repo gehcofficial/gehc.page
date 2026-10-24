@@ -6,7 +6,8 @@
  * mengikuti status server yang sama (DRAFT → LIKERT_OPEN → RUNNING → WRAPUP → CLOSED).
  */
 
-import { canOpenSegment, segmentFor, type SegmentId } from './mentoring';
+import { canOpenSegment, segmentFor, type SegmentId, type SessionActivityBrief } from './mentoring';
+import { normalizeLabPhase } from './lab-step-gate';
 
 export type PatternSegment = { id: string; label: string; hint: string };
 
@@ -90,11 +91,11 @@ export const PATTERN_SEGMENTS: Record<string, PatternSegment[]> = {
     { id: 'komitmen', label: 'Penutup Sesi', hint: 'Deklarasi Coram Deo + unduh rekap. Id segmen tetap komitmen.' },
   ],
   CREATIVE_LAB: [
-    { id: 'briefing', label: 'Firman & Briefing', hint: '10 menit layar judul firman; 5 menit panggil perwakilan. Undian sudah di depan.' },
-    { id: 'aktivitas-1', label: 'Sesi 1', hint: 'Tulis di kertas; pilih 2 pertanyaan untuk diisi di web.' },
-    { id: 'aktivitas-2', label: 'Sesi 2', hint: 'Perwakilan mengisi makna & foto; yang lain melihat progres.' },
-    { id: 'presentasi', label: 'Presentasi Kelompok', hint: 'Satu slide per aktivitas seni + Commitment. Reaksi Suka/Biasa/Kurang.' },
-    { id: 'refleksi', label: 'Refleksi', hint: 'Reaksi presentasi + komitmen pribadi.' },
+    { id: 'briefing', label: 'Start & Briefing', hint: '10 menit tema + Teks Utama; 5 menit briefing — undian di panel kontrol (hasil tidak di layar).' },
+    { id: 'aktivitas-1', label: 'Sesi 1', hint: 'Reminder Jar — tulis di kertas; pilih 2 pertanyaan untuk web.' },
+    { id: 'aktivitas-2', label: 'Sesi 2', hint: 'Art Station Pot & Bag — perwakilan mengisi makna & foto.' },
+    { id: 'presentasi', label: 'Presentasi Kelompok', hint: 'Urutan tampil 1 menit, lalu slide Pot · Bag · Commitment per kelompok.' },
+    { id: 'refleksi', label: 'Konklusi', hint: 'Lesson Learned (chip) + komitmen pribadi di HP.' },
     { id: 'penutup', label: 'Penutup', hint: 'Liturgi penutup + unduh rekap.' },
   ],
 };
@@ -161,7 +162,7 @@ export function segmentForPattern(
   // CREATIVE_LAB: segmen maju mengikuti fase panggung (A1 → A2 → PRESENT → DONE).
   if (c === 'CREATIVE_LAB') {
     const raw = String((extra || {}).activityPhase || 'PRE').toUpperCase();
-    const phase = raw === 'IDLE' ? 'BRIEFING' : raw;
+    const phase = raw === 'IDLE' ? 'PRE' : (raw === 'DRAW' ? 'BRIEFING' : raw);
     if (st === 'CLOSED') return 'penutup';
     if (st === 'WRAPUP') return 'refleksi';
     if (st === 'RUNNING') {
@@ -169,6 +170,7 @@ export function segmentForPattern(
       if (phase === 'A2') return 'aktivitas-2';
       if (phase === 'PRESENT') return 'presentasi';
       if (phase === 'DONE') return 'refleksi';
+      if (phase === 'START' || phase === 'BRIEFING') return 'briefing';
       return 'briefing';
     }
     return 'briefing';
@@ -446,4 +448,37 @@ export const SESSION_MODULE_LABELS: Record<string, string> = {
 
 export function sessionModuleLabel(code: string): string {
   return SESSION_MODULE_LABELS[code] || code;
+}
+
+/** Arahan HP peserta saat segmen briefing (Start Sesi + Briefing). */
+export function labParticipantBriefingMessage(
+  phase: string | null | undefined,
+  brief?: SessionActivityBrief | null,
+): { title: string; body: string } {
+  const p = normalizeLabPhase(String(phase || 'PRE'));
+  const theme = String(brief?.firmanTitle || '').trim() || 'Tema pekan';
+  const ref = String(brief?.teksUtamaRef || '').trim();
+  const text = String(brief?.teksUtamaText || '').trim();
+  const scripture = [ref, text].filter(Boolean).join(text && ref ? ' — ' : '');
+  if (p === 'PRE') {
+    return {
+      title: 'Menunggu Start Sesi',
+      body: 'Duduk bersama kelompokmu. Judul tema dan Teks Utama akan tampil saat fasilitator menekan Start Sesi.',
+    };
+  }
+  if (p === 'START') {
+    return {
+      title: theme,
+      body: scripture || 'Baca dan renungkan Teks Utama bersama kelompokmu (10 menit).',
+    };
+  }
+  if (p === 'BRIEFING') {
+    const scribe = String(brief?.briefing?.scribe || '').trim();
+    return {
+      title: 'Briefing',
+      body: scribe
+        || 'Kirim perwakilan kelompok ke depan untuk melapor kepada admin. Urutan presentasi diundi di panel kontrol — hasil tidak ditampilkan di layar.',
+    };
+  }
+  return { title: 'Start & Briefing', body: PATTERN_SEGMENTS.CREATIVE_LAB[0]?.hint || '' };
 }

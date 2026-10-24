@@ -276,7 +276,7 @@ function creativeLabActivitySection(n: number): DraftSection {
       t('a2-station-theme', 'Stasiun A — judul tema', 'text', ''),
       t('a2-pot-meaning', 'Stasiun A — makna (layar)', 'textarea', ''),
       t('a2-pot', 'Stasiun A — arahan / refleksi', 'textarea', ''),
-      t('a2-b-media', 'Stasiun B — nama media', 'text', 'Tas'),
+      t('a2-b-media', 'Stasiun B — nama media', 'text', 'Bag'),
       t('a2-b-theme', 'Stasiun B — judul tema', 'text', ''),
       t('a2-bag-meaning', 'Stasiun B — makna (layar)', 'textarea', ''),
       t('a2-bag', 'Stasiun B — arahan / refleksi', 'textarea', ''),
@@ -293,7 +293,7 @@ function creativeLabActivitySection(n: number): DraftSection {
   const hint = n === 1
     ? 'Sesi kertas + web: 6 kartu di layar; tiap orang tulis di kertas, pilih 2 untuk diisi digital. Wajib judul aktivitas + menit.'
     : n === 2
-      ? 'Dua stasiun paralel (label media bebas, mis. Pot/Tas) + slide Commitment saat presentasi. Field bertanda diisi AI harus direview sebelum terbit.'
+      ? 'Dua stasiun paralel (label media bebas, mis. Pot/Bag) + slide Commitment saat presentasi. Field bertanda diisi AI harus direview sebelum terbit.'
       : 'Opsi lanjutan: aktivitas seni tambahan (satu slide presentasi per aktivitas). Field bertanda diisi AI harus direview sebelum terbit.';
   return {
     key: `activity-${n}`,

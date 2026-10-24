@@ -22,7 +22,6 @@ export const MentoringLabControls: React.FC<Props> = ({
   live,
   busy,
   prefMin,
-  onWrapup,
   onClose,
   onResetDraft,
 }) => {
@@ -31,8 +30,8 @@ export const MentoringLabControls: React.FC<Props> = ({
 
   const onRunStep = (key: string) => {
     switch (key) {
-      case 'DRAW':
-        void lab.startDraw();
+      case 'START':
+        void lab.startSession();
         break;
       case 'BRIEFING':
         void lab.startBriefing();
@@ -46,8 +45,12 @@ export const MentoringLabControls: React.FC<Props> = ({
       case 'PRESENT':
         lab.startPresent();
         break;
+      case 'CHIPS':
       case 'WRAPUP':
-        onWrapup();
+        void lab.openChipsKonklusi();
+        break;
+      case 'LOCK':
+        lab.lockScreen();
         break;
       default:
         break;

@@ -1595,7 +1595,7 @@ export const MentoringControl: React.FC<{ initialSlug?: string; eventId?: string
 
           {canManageChips && (
           <div className={CARD}>
-            <p className="text-sm font-black">{isCreativeLab ? 'Satu Kata' : 'Lesson Learned'} ({detail.chips.length})</p>
+            <p className="text-sm font-black">Lesson Learned ({detail.chips.length})</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {detail.chips.map((chip) => (
                 <span

@@ -178,16 +178,17 @@ export function presentSlideCount(brief?: SessionActivityBrief | null): number {
 }
 
 /** Layar proyektor: pre-briefing = judul tema saja; briefing/undian = instruksi + slot urutan. */
-export function labBriefingScreenMode(phase: string, startedAt?: string | null): 'pre-title' | 'briefing' | 'other' {
+export function labBriefingScreenMode(phase: string, startedAt?: string | null): 'idle' | 'start' | 'briefing' | 'other' {
   const p = normalizeLabPhase(phase, startedAt);
-  if (p === 'PRE') return 'pre-title';
-  if (p === 'BRIEFING' || p === 'DRAW') return 'briefing';
+  if (p === 'PRE') return 'idle';
+  if (p === 'START') return 'start';
+  if (p === 'BRIEFING') return 'briefing';
   return 'other';
 }
 
 /** @deprecated Pakai labBriefingScreenMode */
 export function briefingFirmanOnly(phase: string, startedAt: string | null, _nowMs: number): boolean {
-  return labBriefingScreenMode(phase, startedAt) === 'pre-title';
+  return labBriefingScreenMode(phase, startedAt) === 'start';
 }
 
 export type LabArtStationSlot = {

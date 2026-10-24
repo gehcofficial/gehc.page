@@ -2,12 +2,12 @@
  * Creative Lab — urutan langkah ketat (server source of truth + mirror di src/lib).
  */
 
-export const LAB_PHASES = ['PRE', 'BRIEFING', 'DRAW', 'A1', 'A2', 'PRESENT', 'DONE'];
+export const LAB_PHASES = ['PRE', 'START', 'BRIEFING', 'A1', 'A2', 'PRESENT', 'DONE'];
 
 const STEP_INDEX = {
   PRE: 0,
-  BRIEFING: 1,
-  DRAW: 2,
+  START: 1,
+  BRIEFING: 2,
   A1: 3,
   A2: 4,
   PRESENT: 5,
@@ -16,6 +16,7 @@ const STEP_INDEX = {
 
 export function defaultLabCompleted() {
   return {
+    START_AT: null,
     BRIEFING_AT: null,
     DRAW_AT: null,
     A1_AT: null,
@@ -29,6 +30,7 @@ export function cleanLabCompleted(raw) {
   const o = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const pick = (k) => (o[k] ? String(o[k]).slice(0, 30) : null);
   return {
+    START_AT: pick('START_AT'),
     BRIEFING_AT: pick('BRIEFING_AT'),
     DRAW_AT: pick('DRAW_AT'),
     A1_AT: pick('A1_AT'),
@@ -38,10 +40,11 @@ export function cleanLabCompleted(raw) {
   };
 }
 
-/** Map fase lama `IDLE` → PRE (belum mulai) atau BRIEFING (sudah mulai). */
+/** Map fase lama `IDLE` / `DRAW` ke fase baru. */
 export function normalizeLabPhase(phase, startedAt) {
   const p = String(phase || 'PRE').toUpperCase();
-  if (p === 'IDLE') return startedAt ? 'BRIEFING' : 'PRE';
+  if (p === 'IDLE') return startedAt ? 'START' : 'PRE';
+  if (p === 'DRAW') return 'BRIEFING';
   if (LAB_PHASES.includes(p)) return p;
   return 'PRE';
 }
@@ -51,7 +54,7 @@ export function labPhaseStepIndex(phase, startedAt) {
 }
 
 /**
- * Tombol runner kontrol: BRIEFING, DRAW, A1, A2, PRESENT, WRAPUP.
+ * Tombol runner kontrol: START, BRIEFING, A1, A2, PRESENT, CHIPS, LOCK.
  */
 export function canEnableLabRunnerKey(key, activity) {
   const a = activity && typeof activity === 'object' ? activity : {};
@@ -60,18 +63,21 @@ export function canEnableLabRunnerKey(key, activity) {
   const drawn = Boolean(a.presentDrawnAt || c.DRAW_AT);
 
   switch (String(key || '').toUpperCase()) {
+    case 'START':
+      return phase === 'PRE' && !c.START_AT;
     case 'BRIEFING':
-      return phase === 'PRE' && !c.BRIEFING_AT;
-    case 'DRAW':
-      return Boolean(c.BRIEFING_AT) && !drawn && (phase === 'BRIEFING' || phase === 'DRAW');
+      return phase === 'START' && Boolean(c.START_AT) && !c.BRIEFING_AT;
     case 'A1':
-      return drawn && !c.A1_AT;
+      return (phase === 'BRIEFING' || drawn) && drawn && !c.A1_AT;
     case 'A2':
       return Boolean(c.A1_AT) && !c.A2_AT;
     case 'PRESENT':
       return Boolean(c.A2_AT) && !c.PRESENT_AT;
+    case 'CHIPS':
     case 'WRAPUP':
-      return Boolean(c.PRESENT_AT) || phase === 'DONE' || Boolean(c.DONE_AT);
+      return Boolean(c.PRESENT_AT) && phase !== 'DONE' && !c.DONE_AT;
+    case 'LOCK':
+      return phase === 'DONE' || Boolean(c.DONE_AT);
     default:
       return false;
   }
@@ -88,9 +94,10 @@ export function stampLabCompletedOnTransition(prev, next) {
   const nPhase = normalizeLabPhase(out.phase, out.startedAt);
   const now = isoNow();
 
+  if (nPhase === 'START' && !out.completed.START_AT) out.completed.START_AT = now;
   if (nPhase === 'BRIEFING' && !out.completed.BRIEFING_AT) out.completed.BRIEFING_AT = now;
-  if ((out.presentDrawnAt && !prev?.presentDrawnAt) || (nPhase === 'DRAW' && pPhase !== 'DRAW' && !out.completed.DRAW_AT)) {
-    if (!out.completed.DRAW_AT) out.completed.DRAW_AT = out.presentDrawnAt || now;
+  if ((out.presentDrawnAt && !prev?.presentDrawnAt) && !out.completed.DRAW_AT) {
+    out.completed.DRAW_AT = out.presentDrawnAt || now;
   }
   if (nPhase === 'A1' && pPhase !== 'A1' && !out.completed.A1_AT) out.completed.A1_AT = now;
   if (nPhase === 'A2' && pPhase !== 'A2' && !out.completed.A2_AT) out.completed.A2_AT = now;
@@ -106,30 +113,31 @@ export function stampLabCompletedOnTransition(prev, next) {
 export function validateLabActivityTransition(prev, next) {
   const pPhase = normalizeLabPhase(prev?.phase, prev?.startedAt);
   const nPhase = normalizeLabPhase(next?.phase, next?.startedAt);
-  const pi = labPhaseStepIndex(pPhase);
-  const ni = labPhaseStepIndex(nPhase);
+  const pi = labPhaseStepIndex(pPhase, prev?.startedAt);
+  const ni = labPhaseStepIndex(nPhase, next?.startedAt);
 
   if (ni < pi) {
     return 'Transisi mundur tidak diizinkan — gunakan Reset panggung atau Reset Draf.';
   }
 
   if (ni === pi) {
-    if (!prev?.presentDrawnAt && next?.presentDrawnAt && pi < STEP_INDEX.DRAW) {
-      return 'Undian hanya boleh dijalankan setelah Briefing dimulai.';
+    if (!prev?.presentDrawnAt && next?.presentDrawnAt && pi < STEP_INDEX.A1) {
+      if (pPhase !== 'BRIEFING') return 'Undian hanya boleh dijalankan saat Briefing.';
+      return null;
     }
     return null;
   }
 
   if (ni > pi + 1) {
-    return 'Langkah aktivitas tidak boleh dilewati — ikuti urutan Briefing → Undian → Sesi 1 → Sesi 2 → Presentasi.';
+    return 'Langkah aktivitas tidak boleh dilewati — ikuti urutan Start Sesi → Briefing → Sesi 1 → Sesi 2 → Presentasi.';
   }
 
   const c = cleanLabCompleted(next.completed || prev?.completed);
-  if (nPhase === 'BRIEFING' && pPhase !== 'PRE') {
-    return 'Briefing hanya bisa dimulai dari tahap awal.';
+  if (nPhase === 'START' && pPhase !== 'PRE') {
+    return 'Start Sesi hanya dari tahap awal.';
   }
-  if (nPhase === 'DRAW' && pPhase !== 'BRIEFING') {
-    return 'Undian hanya bisa dijalankan saat Briefing.';
+  if (nPhase === 'BRIEFING' && pPhase !== 'START') {
+    return 'Briefing mengikuti Start Sesi.';
   }
   if (nPhase === 'A1') {
     if (!next.presentDrawnAt && !c.DRAW_AT) return 'Sesi 1 terbuka setelah undian selesai.';
@@ -148,4 +156,13 @@ export function mergeValidateAndStampLabActivity(prev, incoming) {
   if (err) return { error: err };
   const stamped = stampLabCompletedOnTransition(prev, incoming);
   return { activity: stamped };
+}
+
+/** Layar/HP peserta: tampilkan urutan undian hanya menit pertama Presentasi. */
+export function labAudienceShowsPresentOrder(phase, presentStartedAt, nowMs = Date.now()) {
+  const p = normalizeLabPhase(phase);
+  if (p !== 'PRESENT' || !presentStartedAt) return false;
+  const start = Date.parse(String(presentStartedAt));
+  if (Number.isNaN(start)) return false;
+  return nowMs - start < 60_000;
 }
