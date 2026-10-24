@@ -425,6 +425,7 @@ export function cleanActivity(raw) {
     presentSkipped,
     presentPostponed,
     presentDrawnAt: raw.presentDrawnAt ? String(raw.presentDrawnAt).slice(0, 30) : null,
+    presentComplete: Boolean(raw.presentComplete),
     durations: {
       A1: durationFor('A1', ACTIVITY_PHASE_SECONDS.A1),
       A2: durationFor('A2', ACTIVITY_PHASE_SECONDS.A2),
@@ -538,9 +539,7 @@ export function buildCreativeLabTeams(dbGroups, opts = {}) {
       return a.name.localeCompare(b.name, 'id');
     });
     const attended = checked.size ? people.filter((p) => checked.has(p.id)) : [];
-    const rosterSource = attended.length ? attended : people;
-    const rosterCap = attended.length ? 20 : LAB_ROSTER_MAX;
-    const roster = rosterSource.filter((p) => p.name).slice(0, rosterCap);
+    const roster = attended.filter((p) => p.name).slice(0, 20);
     return {
       groupId: g?.id ? String(g.id) : '',
       name: g?.name ? String(g.name).trim() : canonical,
@@ -554,7 +553,7 @@ export function buildCreativeLabTeams(dbGroups, opts = {}) {
       bag: [],
       repUserId: '',
       repName: '',
-      memberUserIds: people.map((p) => p.id).slice(0, 20),
+      memberUserIds: attended.map((p) => p.id).slice(0, 20),
       _people: people,
     };
   };

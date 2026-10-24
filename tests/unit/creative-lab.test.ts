@@ -209,6 +209,16 @@ describe('creative-lab: payload peserta & layar', () => {
     expect(empty.present.seconds).toBe(150);
   });
 
+  it('allowedNoteCodes menyertakan kode kartu Reminder Jar Creative Lab', () => {
+    const allowed = allowedNoteCodes({ draft: {} }, 'CREATIVE_LAB');
+    expect(allowed.has('JAR-1')).toBe(true);
+    expect(allowed.has('KOMITMEN')).toBe(true);
+    const custom = allowedNoteCodes({
+      draft: { jar: { 'jar-root': 'x' } },
+    }, 'CREATIVE_LAB');
+    expect(custom.has('JAR-ROOT')).toBe(true);
+  });
+
   it('allowedNoteCodes tetap membuka KOMITMEN', () => {
     const allowed = allowedNoteCodes({
       topics: [],
@@ -313,7 +323,7 @@ describe('creative-lab: buildCreativeLabTeams', () => {
       groupId: 'g-agape',
       missing: false,
       members: ['Zara'],
-      memberUserIds: ['a1', 'a2'],
+      memberUserIds: ['a1'],
     });
     expect(out.missing).toContain('Avodah');
     expect(out.missing).not.toContain('Agape');
@@ -324,6 +334,7 @@ describe('creative-lab: buildCreativeLabTeams', () => {
 
   it('tanpa kunci urutan: kanonik, pot dan perwakilan yang masih anggota dipertahankan', () => {
     const out = buildCreativeLabTeams(groups, {
+      checkedInIds: ['u1', 'u2', 'a1', 'a2'],
       existingTeams: [{ name: 'shalom', pot: ['Budi', 'Orang Luar'], repUserId: 'u1', station: 'Pojok' }],
     });
     expect(out.teams[0].groupId).toBe('g-agape');
@@ -343,6 +354,7 @@ describe('creative-lab: buildCreativeLabTeams', () => {
   it('kunci urutan bila sudah ada update: indeks lama tetap, potong di 10', () => {
     const out = buildCreativeLabTeams(groups, {
       lockOrder: true,
+      checkedInIds: ['u1', 'u2', 'a1'],
       existingTeams: [
         { name: 'Shalom', groupId: 'g-shalom', pot: ['Ani'], bag: ['Budi'], repUserId: 'u2', task: 'tugas', done: true },
         { name: 'Kelompok Lama', members: ['Lama'] },
@@ -356,22 +368,21 @@ describe('creative-lab: buildCreativeLabTeams', () => {
     expect(out.teams.map((t) => t.name)).not.toContain('Ruach');
   });
 
-  it('roster tampilan = yang hadir; yang absen tetap di akses feed', () => {
+  it('roster tampilan = mentee yang check-in saja', () => {
     const members = Array.from({ length: 22 }, (_, i) => member(`id${String(i).padStart(2, '0')}`, `Nama ${String(i).padStart(2, '0')}`));
     const out = buildCreativeLabTeams(
       [{ id: 'g', name: 'Agape', members }],
       { checkedInIds: ['id21', 'id01'] },
     );
     expect(out.teams[0].members).toEqual(['Nama 01', 'Nama 21']);
-    expect(out.teams[0].memberUserIds).toHaveLength(20);
-    expect(out.teams[0].memberUserIds).toEqual(expect.arrayContaining(['id21', 'id01', 'id00']));
+    expect(out.teams[0].memberUserIds).toEqual(['id01', 'id21']);
   });
 
-  it('sebelum ada absensi, roster perencanaan tetap maks 8', () => {
+  it('sebelum check-in event, roster papan kosong', () => {
     const members = Array.from({ length: 12 }, (_, i) => member(`id${i}`, `Nama ${i}`));
     const out = buildCreativeLabTeams([{ id: 'g', name: 'Agape', members }]);
-    expect(out.teams[0].members).toHaveLength(8);
-    expect(out.teams[0].memberUserIds).toHaveLength(12);
+    expect(out.teams[0].members).toHaveLength(0);
+    expect(out.teams[0].memberUserIds).toHaveLength(0);
   });
 });
 

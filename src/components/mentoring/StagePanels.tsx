@@ -588,6 +588,7 @@ type LabActivity = {
   presentSkipped: number[];
   presentPostponed: number[];
   presentDrawnAt: string | null;
+  presentComplete?: boolean;
   durations: { A1: number; A2: number; PRESENT: number };
 };
 
@@ -702,6 +703,7 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
   const [uploadSlot, setUploadSlot] = useState<Record<number, 'POT' | 'BAG' | 'GROUP'>>({});
   const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
   const [savedTeamNames, setSavedTeamNames] = useState('');
+  const [savedTeamsSnapshot, setSavedTeamsSnapshot] = useState('');
   const [participantsReady, setParticipantsReady] = useState(false);
   const [stations, setStations] = useState({ a: 'Pot', b: 'Bag' });
   const [labBrief, setLabBrief] = useState(() => sessionBriefFromStoredDraft(null));
@@ -714,6 +716,14 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
   const reloadLabActivity = labCtx?.reload;
   const now = useLabTick(Boolean(activity.startedAt || activity.presentStartedAt));
 
+  const teamsDirty = useMemo(() => {
+    if (!savedTeamsSnapshot) return false;
+    const snap = JSON.stringify(teams.map((t) => ({
+      name: t.name, repUserId: t.repUserId, pot: t.pot, bag: t.bag, station: t.station, done: t.done,
+    })));
+    return snap !== savedTeamsSnapshot;
+  }, [teams, savedTeamsSnapshot]);
+
   const load = useCallback(async () => {
     const showSpinner = !loadedOnceRef.current;
     if (showSpinner) setLoading(true);
@@ -721,7 +731,11 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
       const cfg = await fetchStage(sessionId);
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
-      setSavedTeamNames((list.length ? list : [labEmptyTeam()]).map((t: LabTeamRow) => t.name.trim()).join('|'));
+      const normalized = list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()];
+      setSavedTeamNames(normalized.map((t: LabTeamRow) => t.name.trim()).join('|'));
+      setSavedTeamsSnapshot(JSON.stringify(normalized.map((t) => ({
+        name: t.name, repUserId: t.repUserId, pot: t.pot, bag: t.bag, station: t.station, done: t.done,
+      }))));
       if (!hasLabCtx) {
         setLocalActivity(parseLabActivity(cfg) as LabActivity);
       } else if (reloadLabActivity) {
@@ -919,7 +933,11 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
       const cfg = await fetchStage(sessionId);
       const list: LabTeamRow[] = Array.isArray(cfg.teams?.teams) ? cfg.teams.teams : [];
       setTeams(list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()]);
-      setSavedTeamNames((list.length ? list : [labEmptyTeam()]).map((t: LabTeamRow) => t.name.trim()).join('|'));
+      const normalized = list.length ? list.map((t: LabTeamRow) => ({ ...labEmptyTeam(), ...t })) : [labEmptyTeam()];
+      setSavedTeamNames(normalized.map((t: LabTeamRow) => t.name.trim()).join('|'));
+      setSavedTeamsSnapshot(JSON.stringify(normalized.map((t) => ({
+        name: t.name, repUserId: t.repUserId, pot: t.pot, bag: t.bag, station: t.station, done: t.done,
+      }))));
       setMsg(namesChanged ? 'Papan kelompok tersimpan — undi ulang urutan presentasi.' : 'Papan kelompok tersimpan — tampil di peserta & layar.');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Gagal menyimpan.');
@@ -970,8 +988,15 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
     const next = stepLabPresentation(activity, count, direction, slideMax);
     if (next.phase === 'DONE') {
       void pushActivity(
-        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: next.presentIndex, presentSlide: next.presentSlide },
-        'Semua kelompok presentasi — lanjut refleksi/konklusi.',
+        {
+          phase: 'PRESENT',
+          presentComplete: true,
+          presentIndex: next.presentIndex,
+          presentSlide: next.presentSlide,
+          startedAt: activity.startedAt,
+          presentStartedAt: activity.presentStartedAt,
+        },
+        'Semua kelompok presentasi selesai — buka Konklusi (Lesson Learned) dari strip kontrol.',
       );
       return;
     }
@@ -997,8 +1022,15 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
     const next = activity.presentIndex + 1;
     if (next >= count) {
       void pushActivity(
-        { phase: 'DONE', startedAt: null, presentStartedAt: null, presentIndex: Math.max(0, count - 1), presentSlide: 0 },
-        'Semua kelompok presentasi — lanjut refleksi/konklusi.',
+        {
+          phase: 'PRESENT',
+          presentComplete: true,
+          presentIndex: Math.max(0, count - 1),
+          presentSlide: 0,
+          startedAt: activity.startedAt,
+          presentStartedAt: activity.presentStartedAt,
+        },
+        'Semua kelompok presentasi selesai — buka Konklusi (Lesson Learned) dari strip kontrol.',
       );
       return;
     }
@@ -1398,7 +1430,10 @@ export const ActivityPanel: React.FC<{ sessionId: string; hideControlBar?: boole
               <p className="text-[11px] font-black text-[#8C8880]">Papan kelompok ({teams.filter((t) => t.name.trim() && !t.missing).length}/{LAB_TEAM_CAP})</p>
               <button type="button" disabled={busy} onClick={() => void loadTenGroups()} className="text-[10px] font-bold text-brand underline disabled:opacity-60">Muat 10 kelompok</button>
             </div>
-            <p className="mt-1 text-[10px] text-[#8C8880]">Nama dan anggota datang dari 10 kelompok Beyonders. Sesi yang sudah terisi tidak berubah sampai tombol ini ditekan. Perwakilan, Stasiun A ({stations.a}), dan Stasiun B ({stations.b}) dipilih dari anggota kelompok itu.</p>
+            <p className="mt-1 text-[10px] text-[#8C8880]">
+              Anggota = mentee Beyonders yang check-in event hari-H (EventAttendee / EventCheckIn / AttendanceRecord HADIR). Tanpa check-in, roster kosong. Perwakilan hanya dari yang hadir.
+              {teamsDirty && <span className="ml-2 font-bold text-amber-700">Belum disimpan</span>}
+            </p>
             <div className="mt-2 space-y-2">
               {teams.map((t, i) => {
                 const options = membersOf(t);

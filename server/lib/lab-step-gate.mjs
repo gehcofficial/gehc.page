@@ -75,7 +75,9 @@ export function canEnableLabRunnerKey(key, activity) {
       return Boolean(c.A2_AT) && !c.PRESENT_AT;
     case 'CHIPS':
     case 'WRAPUP':
-      return Boolean(c.PRESENT_AT) && phase !== 'DONE' && !c.DONE_AT;
+      if (!c.PRESENT_AT) return false;
+      if (phase === 'DONE') return true;
+      return phase === 'PRESENT' && Boolean(a.presentComplete);
     case 'LOCK':
       return phase === 'DONE' || Boolean(c.DONE_AT);
     default:
@@ -144,8 +146,11 @@ export function validateLabActivityTransition(prev, next) {
   }
   if (nPhase === 'A2' && !c.A1_AT) return 'Sesi 2 terbuka setelah Sesi 1 dimulai.';
   if (nPhase === 'PRESENT' && !c.A2_AT) return 'Presentasi terbuka setelah Sesi 2 dimulai.';
-  if (nPhase === 'DONE' && pPhase !== 'PRESENT' && pPhase !== 'A2') {
-    return 'Konklusi mengikuti Presentasi.';
+  if (nPhase === 'DONE') {
+    if (pPhase !== 'PRESENT') return 'Konklusi mengikuti Presentasi.';
+    if (!next.presentComplete && !prev?.presentComplete) {
+      return 'Selesaikan presentasi semua kelompok dulu — gunakan kontrol Konklusi setelah semua tampil.';
+    }
   }
 
   return null;
