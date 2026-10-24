@@ -25,6 +25,9 @@ import {
 } from '../../lib/mentoring';
 import { buildSessionRecapPdf, downloadBlob } from '../../lib/mentoringPdf';
 import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
+import { labDisplayShowsRepNames } from '../../lib/creative-lab-rundown';
+import { labAudienceShowsPresentOrder } from '../../lib/lab-step-gate';
+import { labParticipantBriefingMessage } from '../../lib/session-engine';
 import SessionTimer from './SessionTimer';
 import { SessionNotes } from './SessionNotes';
 import { JarWebSlots, LabGroupPanel, LabPresentationReactions } from './CreativeLabPanels';
@@ -302,14 +305,17 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
     : activityTotalSec * 1000;
   const activityExpired = Boolean(activityStartedAt) && activityRemainMs <= 0;
   const LAB_PHASE_LABEL: Record<string, string> = {
-    PRE: 'Menunggu Briefing',
+    PRE: 'Menunggu Start Sesi',
+    START: 'Start Sesi · tema & Teks Utama',
     BRIEFING: 'Briefing',
-    DRAW: 'Undian',
-    IDLE: 'Briefing',
+    DRAW: 'Briefing',
+    IDLE: 'Start Sesi',
     A1: 'Sesi 1 · Reminder Jar',
     A2: 'Sesi 2 · Art Stations',
-    PRESENT: 'Presentasi kelompok',
-    DONE: 'Refleksi & Satu Kata',
+    PRESENT: labAct && labAudienceShowsPresentOrder(labAct.phase, labAct.presentStartedAt, activityTick)
+      ? 'Urutan presentasi'
+      : 'Presentasi kelompok',
+    DONE: 'Konklusi · Lesson Learned',
   };
   const stepTick = useNowTick(Boolean(data?.rounds?.stepStartedAt));
   const slots = useMemo(() => {
@@ -721,13 +727,27 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
         </div>
       )}
 
+      {has('guide') && c === 'CREATIVE_LAB' && labAct && (() => {
+        const msg = labParticipantBriefingMessage(labAct.phase, data.activityBrief);
+        if (!msg.body) return null;
+        return (
+          <div className={CARD}>
+            <h4 className="text-sm font-black text-[#1B1B1B] mb-2">{msg.title}</h4>
+            <p className="text-xs leading-relaxed text-[#1B1B1B] whitespace-pre-line">{msg.body}</p>
+            {labAct.phase === 'BRIEFING' && data.activityBrief?.briefing?.draw && (
+              <p className="text-[11px] text-[#8C8880] mt-2">{data.activityBrief.briefing.draw}</p>
+            )}
+          </div>
+        );
+      })()}
+
       {has('welcome') && (
         <div className={`${CARD} border-brand/40 bg-gradient-to-r from-brand/10 to-brand-end/10`}>
           <p className="text-[10px] font-black uppercase tracking-widest text-brand">Selamat datang</p>
           <p className="text-lg font-black tracking-tight mt-1">Shalom, {data.me?.name || 'Peserta'}!</p>
           <p className="text-xs leading-relaxed mt-1.5">
             {c === 'CREATIVE_LAB'
-              ? `Selamat datang di ${data.session.title}. Hari ini firman menjadi karya: Sesi 1 · Reminder Jar, lalu Sesi 2 · Art Stations. Tema pekan ada di subjudul dan nama media. Duduklah bersama kelompokmu.`
+              ? `Selamat datang di ${data.session.title}. Ikuti Start Sesi & Briefing, lalu Sesi 1 · Reminder Jar dan Sesi 2 · Art Stations. Duduklah bersama kelompokmu.`
               : `Selamat datang di ${data.session.title}. Hari ini tentang Rescue Plan — Tuhan punya rencana penyelamatan untukmu, dan kamu tidak berjalan sendirian.`}
           </p>
           <p className="text-[11px] text-[#8C8880] mt-1.5">
@@ -929,7 +949,12 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
                 {t.members.length > 0 && <p className="text-[11px] mt-0.5">{t.members.join(' · ')}</p>}
                 {c === 'CREATIVE_LAB' && (
                   <div className="mt-1 space-y-0.5">
-                    {t.station && <p className="text-[10px] text-[#8C8880]">Meja: {t.station}{t.repName ? ` · Perwakilan: ${t.repName}` : ''}</p>}
+                    {t.station && (
+                      <p className="text-[10px] text-[#8C8880]">
+                        Meja: {t.station}
+                        {labDisplayShowsRepNames(labAct?.phase) && t.repName ? ` · Perwakilan: ${t.repName}` : ''}
+                      </p>
+                    )}
                     {t.pot?.length ? <p className="text-[10px] text-emerald-700">Stasiun A: {t.pot.join(', ')}</p> : null}
                     {t.bag?.length ? <p className="text-[10px] text-brand">Stasiun B: {t.bag.join(', ')}</p> : null}
                   </div>
@@ -963,18 +988,16 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             <div className="text-center py-4 space-y-2">
               <Sparkles className="w-7 h-7 text-brand mx-auto" />
               <p className="font-display text-xl font-black">Thank you, {data.me?.name || 'Peserta'}!</p>
-              <p className="text-xs text-[#8C8880]">{c === 'CREATIVE_LAB' ? 'Satu Kata-mu tercatat. Lihat layar utama di depan.' : 'Lesson learned-mu tercatat. Lihat layar utama di depan.'}</p>
+              <p className="text-xs text-[#8C8880]">Lesson learned-mu tercatat. Lihat layar utama di depan.</p>
             </div>
           ) : (data.chips?.list || []).length === 0 ? (
-            <p className="text-xs text-[#8C8880] italic">{c === 'CREATIVE_LAB' ? 'Pilihan Satu Kata menyusul dari tim — siapkan hatimu.' : 'Pilihan lesson learned menyusul dari tim — siapkan hatimu.'}</p>
+            <p className="text-xs text-[#8C8880] italic">Pilihan lesson learned menyusul dari tim — siapkan hatimu.</p>
           ) : (
             <div className="space-y-3">
               <div>
-                <h4 className="text-sm font-black text-[#1B1B1B]">{c === 'CREATIVE_LAB' ? 'Satu Kata' : 'Lesson Learned'}</h4>
+                <h4 className="text-sm font-black text-[#1B1B1B]">Lesson Learned</h4>
                 <p className="text-[11px] text-[#8C8880] mt-0.5">
-                  {c === 'CREATIVE_LAB'
-                    ? `Pilih maksimal ${chipLimit} kata yang paling mewakili pelajaranmu hari ini.`
-                    : `Pilih maksimal ${chipLimit} kata yang paling mewakili aha-moment kamu hari ini.`}
+                  {`Pilih maksimal ${chipLimit} kata yang paling mewakili pelajaranmu hari ini.`}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

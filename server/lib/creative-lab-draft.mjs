@@ -183,23 +183,25 @@ export function creativeLabBriefFromDraft(draft) {
     title: '', minutes: 25, stationMedia: '', stationTheme: '', stationBMedia: '', stationBTheme: '',
     legacyPot: '', legacyBag: '', legacyPotMeaning: '', legacyBagMeaning: '',
   };
-  const mediaA = a2.stationMedia || 'Stasiun A';
-  const mediaB = a2.stationBMedia || 'Stasiun B';
+  const mediaA = a2.stationMedia || 'Pot';
+  const mediaB = a2.stationBMedia || 'Bag';
   const themeA = a2.stationTheme || '';
   const themeB = a2.stationBTheme || '';
   return {
     firmanTitle: p.firmanTitle,
     firmanPoints: p.firmanPoints,
+    teksUtamaRef: '',
+    teksUtamaText: '',
     briefing: {
       core: p.briefing.core,
       rules: p.briefing.rules,
       jarIntro: '',
       scribe: p.briefing.scribe || 'Kirim perwakilan kelompok ke depan — nama hanya tampil di Sesi 2.',
-      draw: p.briefing.draw || 'Urutan presentasi mengikuti pengundian di layar.',
+      draw: p.briefing.draw || 'Urutan presentasi sedang diundi di panel kontrol — hasil tidak ditampilkan di layar.',
       audienceDirective: p.briefing.audienceDirective
         || 'Ikuti arahan di layar; tulis di kertas saat diminta, isi web hanya untuk slot digital.',
       projectorDirective: p.briefing.projectorDirective
-        || 'Tampilkan timer fase, nomor grup saat undian, dan progres kelompok saat Sesi 2.',
+        || 'Start: tema + Teks Utama; Briefing: instruksi perwakilan; undian tanpa hasil di layar; Sesi 2: progres kelompok.',
     },
     a1: {
       title: a1.title || 'Sesi 1',

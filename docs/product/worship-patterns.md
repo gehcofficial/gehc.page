@@ -80,7 +80,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
 - `DEBAT`: `rounds/timer/teams` — penuh (panel 5 ronde × 11 langkah bertimer + lembar juri 4-kriteria berbobot (biblika 40 · logika 30 · teamwork 20 · etika 10 → skor PRO/KONTRA otomatis) + tim PRO/KONTRA undian H-1 + Trap Reveal di kontrol; mosi + langkah/timer + kartu tim + skor + Trap Reveal di peserta & layar; tombol hari-H D0–D2 Mulai Ronde 1 / Ronde Berikutnya / Trap Reveal; timer langkah display-only, transisi manual).
 - `BEDAH_FILM`: `screening/notes/testimony/likert/chips/wordcloud` — penuh (panel mulai/henti tanpa countdown, pre-roll slideshow ala bioskop saat menunggu (deck default + pengumuman custom `screening.preShow` dari panel kontrol, ganti 7 s/slide); timer **per langkah saja**: M0 Likert AWAL 5', M3 Likert AKHIR 5', M4 Undi & Kesaksian 10' — tanpa timer sesi penuh, bagian pemutaran film tanpa timer; M1 otomatis menandai film tayang, M3 menghentikannya; peserta telat (gate AWAL terkunci) lanjut ke Nonton & Catat; layar mode tenang + nada bioskop, Likert AWAL/AKHIR 5 item + afirmasi + delta, Lesson Learned + undi 2 dengan nama & grup di layar). Sim: `npm run film:sim`.
 - `THREE_SEQUENCES`: `teams/timer/notes` — penuh (panel susun tim, papan tim di peserta & layar).
-- `CREATIVE_LAB`: `activity/teams/timer/notes/chips/wordcloud` — penuh (panel hari-H `ActivityPanel`: timer A1/A2/presentasi display-only, tombol A1/A2/Presentasi/Kelompok berikutnya/Stop/Reset, navigator 6 kartu jar, durasi fase, toggle layar, tombol **Muat 10 kelompok** untuk Agape–Shalom + perwakilan dari anggota kelompok + Tim Pot/Tas; layar menampilkan timer fase, spotlight kelompok presentasi, kartu jar, arahan Pot/Tas, konklusi, dan papan kelompok; peserta mengikuti segmen `pembuka → briefing → aktivitas-1 → aktivitas-2 → presentasi → refleksi → penutup` dengan 6 slot catatan `JAR-ROOT`…`JAR-STEP` + `KOMITMEN`, web memilih 2 dari 6).
+- `CREATIVE_LAB`: `activity/teams/timer/notes/chips` — penuh (strip kontrol: **Start Sesi** → **Briefing** (undi di panel urutan, gated) → Sesi 1 → Sesi 2 → Presentasi → **Buka Lesson Learned** + **Kunci layar**; panel `ActivityPanel`: timer display-only, navigator 6 kartu jar, **Muat 10 kelompok**, perwakilan dari anggota; layar: tema + Teks Utama (Start), instruksi briefing/undian tanpa hasil, Pot/Bag, konklusi chip; peserta segmen `briefing → aktivitas-1 → aktivitas-2 → presentasi → refleksi → penutup`; 6 slot `JAR-*` + `KOMITMEN`, web pilih 2 dari 6).
 - Status panggung live (`PUT .../sessions/:id/stage`, tersimpan di `config.rounds/screening/teams`); alur peserta
   generik `PatternDay` (segmen + widget dari `session-engine.ts`) untuk semua pola non-post-to-post.
 - `testimony` (semua pola yang memakai): pool check-in → undi 4 (2 Mentee + 1 Mentor + 1 Co-mentor),
@@ -116,7 +116,7 @@ node scripts/worship-sim.mjs --participants 100 --mode final
   (`eventId` dari tanggal pekan; `POST /api/worship/sessions` bila belum ada), lalu tampilkan **form kosongan
   per pola** (`src/lib/worship-session-draft.ts`: Post-to-Post = 3 topik × 3 Likert + 12 chip + afirmasi + timer;
    Monolog = 3 Q FGD + lagu (judul/makna/penyanyi) + 2 Q deep sharing; Debat = 5 mosi + Trap Reveal; Bedah Film = film + Likert 5 (2 ronde) + 3 Q + chip;
-  Mission Sequence = yel-yel/sandi + 2 amplop + 5 tim gabungan; Creative Lab = Firman & Briefing + 6 kartu jar + Sesi 1 · Reminder Jar / Sesi 2 · Art Stations + Presentasi Kelompok + Konklusi + 10 chip Satu Kata + durasi fase).
+  Mission Sequence = yel-yel/sandi + 2 amplop + 5 tim gabungan; Creative Lab = Start Sesi (tema + Teks Utama Studio) + Briefing (undi di panel) + 6 kartu jar + Sesi 1 · Reminder Jar / Sesi 2 · Art Stations (Pot/Bag) + Presentasi + Konklusi Lesson Learned (chip) + durasi fase).
 - **Isi dari AI**: `POST /api/didaskalia/studio/:ym/:week/session-draft` (`generateSessionDraft` di
   `server/lib/didaskalia-ai.mjs`) membaca tema + firman + outline 7 Path + ringkasan khotbah pekan ini;
   Post-to-Post terstruktur penuh (topik, 9 Likert, chip, afirmasi), pola lain nilai per kunci template.
@@ -174,7 +174,7 @@ state hari-H di `config` (`groupId` / anggota / perwakilan di JSON).
 | 3. Sesi 1 · Reminder Jar | 15 | `ACARA` | kertas 6 kartu; web pilih 2 dari 6 ditandai (paralel) di catatan, bukan baris sendiri |
 | 4. Sesi 2 · Art Stations | 25 | `ACARA` | 20' melukis Stasiun A ∥ Stasiun B (paralel) + 5' unggah; nama media di draft |
 | 5. Presentasi Kelompok | 30 | `ACARA` | 10 kelompok × ~2,5' termasuk transisi; yang `missing` tidak diundi |
-| 6. Konklusi | 10 | `ACARA` | firman + Satu Kata + komitmen |
+| 6. Konklusi | 10 | `ACARA` | firman + Lesson Learned (chip) + komitmen |
 | 7. Persembahan & Doa | 10 | `ACARA` | — |
 | 8. Lagu & Doa Penutup | 5 | `ACARA` | — |
 
@@ -197,8 +197,8 @@ fallback generik bila kosong.
 
 | Field | Isi |
 |---|---|
-| `phase` | `PRE` → `BRIEFING` → `DRAW` → `A1` → `A2` → `PRESENT` → `DONE` (transisi ketat; server 409 jika lompat) |
-| `completed` | `{ BRIEFING_AT, DRAW_AT, A1_AT, A2_AT, PRESENT_AT, DONE_AT }` — timestamp tiap langkah |
+| `phase` | `PRE` → `START` → `BRIEFING` → `A1` → `A2` → `PRESENT` → `DONE` (`DRAW`/`IDLE` dinormalisasi; transisi ketat; server 409 jika lompat) |
+| `completed` | `{ START_AT, BRIEFING_AT, DRAW_AT, A1_AT, A2_AT, PRESENT_AT, DONE_AT }` — timestamp tiap langkah |
 | `resetAt` | Marker reset draf; HP/layar kosongkan cache lokal bila berubah |
 | `startedAt` / `durationSec` | timer fase A1/A2 (display-only, transisi manual) |
 | `presentStartedAt` / `presentSeconds` | timer presentasi per kelompok (default baru 150 detik; nilai tersimpan, termasuk 120, tidak ditimpa) |
@@ -217,24 +217,24 @@ Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto
 
 ### 12.4 Kontrol & layar
 
-- **Kontrol** (`#/mentoring/<slug>/kontrol`): strip **Briefing → Undian → Sesi 1 → Sesi 2 → Presentasi → Buka Satu Kata** (gembok sampai langkah sebelumnya jalan) + `ActivityPanel` —
+- **Kontrol** (`#/mentoring/<slug>/kontrol`): strip **Start Sesi → Briefing → Sesi 1 → Sesi 2 → Presentasi → Buka Lesson Learned → Kunci layar** (gembok sampai langkah sebelumnya jalan; undian hanya di panel urutan saat Briefing) + `ActivityPanel` —
   A1 / A2 / Presentasi / Kelompok berikutnya / Stop / Reset, input durasi
   fase, toggle tampil layar, navigator 6 kartu, tombol **Muat 10 kelompok**.
   Nama kelompok terkunci bila `groupId` terisi. Perwakilan, Tim Pot, dan
-  Tim Tas dipilih dari anggota kelompok itu (bukan daftar hadir global).
+  Tim Pot/Bag dipilih dari anggota kelompok itu (bukan daftar hadir global).
   Sesi yang sudah punya baris `worship_lab_updates` mengunci urutan indeks
   saat muat ulang. Kontrol mandiri punya shell, status memuat, dan
   mengalihkan 401 ke login.
 - **Layar** (`/layar`): kode sesi dibaca dari query di dalam hash
   (`#/mentoring/<slug>/layar?code=`), menang atas localStorage. Timer fase,
-  spotlight kelompok, kartu jar, arahan Pot/Tas, konklusi, papan kelompok.
+  tema + Teks Utama (Start), briefing tanpa hasil undian, spotlight kelompok, kartu jar, arahan Pot/Bag, konklusi chip, papan kelompok (nama perwakilan hanya Sesi 2).
 - **Foto:** `Didaskalia [MENTOR]/Kurikulum/<event> [EV:<slug>:DIDASKALIA]/Foto Kelompok/<nama>`
   dan `Hasil Karya/<nama>`. Anak folder tanpa tag (ACL ikut tag event).
   Folder bertag tidak pernah di-rename atau dipindah. Folder lama
   `Creative Lab/<slug>` dibiarkan.
 - **Peserta** (`#/mentoring/<slug>`): header timer fase, widget
   `activity` (timer + arahan + kartu), `teams` (papan kelompok kaya),
-  `notes` (6 kartu + komitmen), `chips` (Satu Kata), `download` (rekap PDF).
+  `notes` (6 kartu + komitmen), `chips` (Lesson Learned setelah dibuka kontrol), `download` (rekap PDF).
 - Seed playbook: `CREATIVE_LAB_PLAYBOOK` (7 bagian) di
   `server/_seed-worship-patterns.cjs`; prompt AI punya aturan khusus
   (`CREATIVE_LAB_RULES`) — sepuluh nama baku; jangan mengarang orang

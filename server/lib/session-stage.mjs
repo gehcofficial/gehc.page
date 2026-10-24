@@ -347,12 +347,12 @@ export function cleanTeams(raw, opts = {}) {
 }
 
 /** Fase aktivitas CREATIVE_LAB (timer display-only, transisi manual). */
-export const ACTIVITY_PHASES = ['PRE', 'BRIEFING', 'DRAW', 'A1', 'A2', 'PRESENT', 'DONE', 'IDLE'];
+export const ACTIVITY_PHASES = ['PRE', 'START', 'BRIEFING', 'A1', 'A2', 'PRESENT', 'DONE', 'IDLE'];
 export const LAB_PRESENT_SLIDE_MAX = 7;
 
-/** Durasi baku tiap fase aktivitas (detik): briefing 15', A1 15', A2 25', presentasi ~2,5'/kelompok. */
+/** Durasi baku tiap fase aktivitas (detik): Start 10', Briefing 5', A1 15', A2 25', presentasi ~2,5'/kelompok. */
 export const ACTIVITY_PHASE_SECONDS = {
-  PRE: 0, BRIEFING: 900, DRAW: 300, IDLE: 900, A1: 900, A2: 1500, PRESENT: 150, DONE: 0,
+  PRE: 0, START: 600, BRIEFING: 300, DRAW: 300, IDLE: 600, A1: 900, A2: 1500, PRESENT: 150, DONE: 0,
 };
 
 /** State awal panggung Creative Lab (pre-briefing: hanya judul tema di layar). */
@@ -360,7 +360,7 @@ export function defaultCreativeLabActivity() {
   return cleanActivity({
     phase: 'PRE',
     startedAt: null,
-    durationSec: ACTIVITY_PHASE_SECONDS.BRIEFING,
+    durationSec: ACTIVITY_PHASE_SECONDS.START,
     showOnScreen: true,
     cardIndex: 0,
     presentIndex: 0,

@@ -15,7 +15,7 @@ import WordCloud from './WordCloud';
 import { ROUND_STEP_SECONDS, roundStepLabel } from '../../lib/session-engine';
 import { labDisplayShowsRepNames } from '../../lib/creative-lab-rundown';
 import { labBriefingScreenMode, labPresentationOrder, presentSlidePlan } from '../../lib/creative-lab-draft';
-import { normalizeLabPhase } from '../../lib/lab-step-gate';
+import { labAudienceShowsPresentOrder, normalizeLabPhase } from '../../lib/lab-step-gate';
 import { fetchWithEtag, startVisiblePoll } from '../../lib/visible-poll';
 
 /**
@@ -545,6 +545,7 @@ const MentoringScreen: React.FC = () => {
                 presentOrder: [],
               };
               const labPhase = normalizeLabPhase(act.phase, act.startedAt);
+              const showPresentOrder = labAudienceShowsPresentOrder(act.phase, act.presentStartedAt, tick);
               const jar = data.jarCards || [];
               const brief = data.activityBrief;
               const phase = act.phase;
@@ -571,22 +572,30 @@ const MentoringScreen: React.FC = () => {
                 ? Math.max(0, new Date(startedAt).getTime() + totalSec * 1000 - tick)
                 : totalSec * 1000;
               const phaseTitle =
-                labPhase === 'PRE' ? 'Firman'
-                  : phase === 'A1' ? `Sesi 1 · ${a1Title}${a1Sub}`
-                    : phase === 'A2' ? `Sesi 2 · ${a2Title}`
-                      : phase === 'PRESENT' ? 'Presentasi Kelompok'
-                        : phase === 'DONE' ? 'Konklusi'
-                          : phase === 'DRAW' ? 'Undian urutan presentasi'
-                            : 'Firman & Briefing';
+                labPhase === 'START' ? 'Start Sesi'
+                  : labPhase === 'PRE' ? 'Menunggu Start Sesi'
+                    : phase === 'A1' ? `Sesi 1 · ${a1Title}${a1Sub}`
+                      : phase === 'A2' ? `Sesi 2 · ${a2Title}`
+                        : phase === 'PRESENT' ? (showPresentOrder ? 'Urutan presentasi' : 'Presentasi Kelompok')
+                          : phase === 'DONE' ? 'Konklusi · Lesson Learned'
+                            : labPhase === 'BRIEFING' ? 'Briefing'
+                              : 'Creative Lab';
+              const teksRef = (brief as { teksUtamaRef?: string })?.teksUtamaRef;
+              const teksText = (brief as { teksUtamaText?: string })?.teksUtamaText;
               const phaseSub =
-                labPhase === 'PRE' ? (brief?.firmanTitle || data.session.title)
-                  : phase === 'A1' ? `Semua menulis 6 kartu di kertas · pilih 2 untuk web (paralel) · ${brief?.a1.minutes || 15} menit`
-                    : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
-                      : phase === 'PRESENT' ? `${act.presentSeconds} detik per kelompok · ${slideTitles[presentSlide]}`
-                        : phase === 'DONE' ? 'Pilih chip Satu Kata + tulis komitmenmu di HP.'
-                          : briefingMode === 'briefing'
-                            ? (brief?.briefing.projectorDirective || brief?.briefing.audienceDirective || 'Perwakilan tiap grup maju ke depan — undian mengisi urutan presentasi.')
-                            : brief?.briefing.audienceDirective || 'Menunggu briefing dimulai.';
+                labPhase === 'START'
+                  ? [brief?.firmanTitle || data.session.title, teksRef ? `Teks Utama: ${teksRef}` : '', teksText || ''].filter(Boolean).join(' · ')
+                  : labPhase === 'PRE' ? 'Menunggu pembukaan sesi dari kontrol Didaskalia.'
+                    : phase === 'A1' ? `Semua menulis 6 kartu di kertas · pilih 2 untuk web (paralel) · ${brief?.a1.minutes || 15} menit`
+                      : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
+                        : phase === 'PRESENT'
+                          ? (showPresentOrder
+                            ? 'Urutan presentasi kelompok hari ini.'
+                            : `${act.presentSeconds} detik per kelompok · ${slideTitles[presentSlide]}`)
+                          : phase === 'DONE' ? 'Pilih chip Lesson Learned + tulis komitmenmu di HP.'
+                            : briefingMode === 'briefing'
+                              ? (brief?.briefing.projectorDirective || brief?.briefing.audienceDirective || 'Perwakilan tiap grup maju ke depan — urutan presentasi sedang diundi.')
+                              : brief?.briefing.audienceDirective || 'Menunggu briefing dimulai.';
               return (
                 <>
                   <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
@@ -601,43 +610,48 @@ const MentoringScreen: React.FC = () => {
                     )}
                   </section>
 
-                  {labPhase === 'PRE' && brief && (
-                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8 text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Firman</p>
-                      <p className="font-display text-3xl sm:text-4xl font-black mt-2 leading-tight">{brief.firmanTitle || data.session.title}</p>
+                  {labPhase === 'START' && brief && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8 text-center space-y-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Tema hari ini</p>
+                      <p className="font-display text-3xl sm:text-4xl font-black leading-tight">{brief.firmanTitle || data.session.title}</p>
+                      {(teksRef || teksText) && (
+                        <div className="text-left max-w-2xl mx-auto space-y-2">
+                          {teksRef && <p className="text-sm font-bold text-brand">Teks Utama — {teksRef}</p>}
+                          {teksText && <p className="text-sm text-white/70 whitespace-pre-wrap">{teksText}</p>}
+                        </div>
+                      )}
                     </section>
                   )}
 
                   {briefingMode === 'briefing' && brief && (
-                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8 space-y-6">
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8 space-y-4">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Briefing</p>
                         <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">
-                          {brief.briefing.projectorDirective || brief.briefing.audienceDirective || 'Perwakilan tiap grup maju ke depan.'}
+                          {brief.briefing.projectorDirective || brief.briefing.audienceDirective || 'Perwakilan tiap grup maju ke depan dan melapor ke admin.'}
                         </p>
-                        <p className="text-sm text-white/60 mt-2">{brief.briefing.draw || 'Undian mengisi urutan presentasi di layar.'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Slot urutan presentasi</p>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                          {Array.from({ length: Math.max(teams.length, order.length || 0, 5) }, (_, pos) => {
-                            const teamIndex = order[pos];
-                            const filled = teamIndex != null;
-                            return (
-                              <div key={`slot-${pos}`} className="rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-center min-h-[88px] flex flex-col justify-center">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Urutan {pos + 1}</p>
-                                <p className="font-display text-3xl font-black mt-1 text-white/90">
-                                  {filled ? `Grup ${teamIndex + 1}` : '—'}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <p className="text-sm text-white/60 mt-2">
+                          {brief.briefing.draw || 'Urutan presentasi sedang diundi — hasil hanya untuk tim kontrol.'}
+                        </p>
                       </div>
                     </section>
                   )}
 
-                  {phase === 'PRESENT' && presenting && (
+                  {phase === 'PRESENT' && showPresentOrder && order.length > 0 && (
+                    <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand mb-3">Urutan presentasi</p>
+                      <ol className="space-y-2 text-lg font-bold">
+                        {order.map((teamIndex, pos) => (
+                          <li key={`ord-${pos}`} className="flex gap-3">
+                            <span className="text-white/50">{pos + 1}.</span>
+                            <span>{teams[teamIndex]?.name || `Kelompok ${teamIndex + 1}`}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
+                  )}
+
+                  {phase === 'PRESENT' && !showPresentOrder && presenting && (
                     <section className="rounded-[28px] bg-gradient-to-r from-brand/20 to-brand-end/20 border border-brand/30 p-8 sm:p-10">
                       <div className="text-center">
                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Sedang presentasi</p>

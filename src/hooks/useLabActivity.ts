@@ -7,7 +7,7 @@ import {
   type LabCompleted,
 } from '../lib/lab-step-gate';
 
-export type LabActivityPhase = 'PRE' | 'BRIEFING' | 'DRAW' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+export type LabActivityPhase = 'PRE' | 'START' | 'BRIEFING' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
 
 export type LabActivityState = {
   phase: LabActivityPhase;
@@ -30,7 +30,7 @@ export type LabActivityState = {
 const defaultActivity = (): LabActivityState => ({
   phase: 'PRE',
   startedAt: null,
-  durationSec: 900,
+  durationSec: 600,
   showOnScreen: true,
   cardIndex: 0,
   presentIndex: 0,
@@ -68,12 +68,12 @@ export function parseLabActivity(cfg: Record<string, unknown>): LabActivityState
   const dur = a.durations && typeof a.durations === 'object' ? (a.durations as Record<string, unknown>) : {};
   const startedAt = (a.startedAt as string) || null;
   const phase = normalizeLabPhase(String(a.phase || 'PRE'), startedAt);
-  const phases = ['PRE', 'BRIEFING', 'DRAW', 'A1', 'A2', 'PRESENT', 'DONE'] as const;
+  const phases = ['PRE', 'START', 'BRIEFING', 'A1', 'A2', 'PRESENT', 'DONE'] as const;
   const phaseSafe = (phases as readonly string[]).includes(phase) ? phase : 'PRE';
   return {
     phase: phaseSafe as LabActivityPhase,
     startedAt,
-    durationSec: Number(a.durationSec) || Number(dur.A1) || 900,
+    durationSec: Number(a.durationSec) || Number(dur.A1) || 600,
     showOnScreen: a.showOnScreen !== false,
     cardIndex: Math.min(5, Math.max(0, Number(a.cardIndex) || 0)),
     presentIndex: Math.min(9, Math.max(0, Number(a.presentIndex) || 0)),
@@ -149,6 +149,10 @@ export function useLabActivity(sessionId: string | null) {
 
   const startDraw = useCallback(async () => {
     if (!sessionId) return;
+    if (normalizeLabPhase(activity.phase, activity.startedAt) !== 'BRIEFING') {
+      setNote('Undian hanya saat fase Briefing.');
+      return;
+    }
     setBusy(true);
     setNote(null);
     try {
@@ -165,19 +169,42 @@ export function useLabActivity(sessionId: string | null) {
         teams.map((t: { missing?: boolean }, i: number) => (t?.missing ? i : -1)).filter((i: number) => i >= 0),
       ));
       const drawnAt = new Date().toISOString();
+      const completed = { ...activity.completed, DRAW_AT: drawnAt };
       await pushActivity(
         {
-          phase: 'DRAW',
-          startedAt: drawnAt,
-          durationSec: 300,
+          phase: 'BRIEFING',
           presentStartedAt: null,
           presentOrder: order.length ? order : presentable,
           presentDrawnAt: drawnAt,
           presentIndex: 0,
           presentSlide: 0,
+          completed,
         },
-        'Undian — urutan presentasi tampil di layar.',
+        'Undian selesai — isi nama perwakilan, lalu mulai Sesi 1.',
       );
+    } finally {
+      setBusy(false);
+    }
+  }, [sessionId, pushActivity, activity.phase, activity.startedAt, activity.completed]);
+
+  const startSession = useCallback(async () => {
+    if (!sessionId) return;
+    setBusy(true);
+    try {
+      await ensureSessionRunning(sessionId);
+      const now = new Date().toISOString();
+      await pushActivity(
+        {
+          phase: 'START',
+          startedAt: now,
+          durationSec: 600,
+          presentStartedAt: null,
+          completed: { ...defaultLabCompleted(), START_AT: now },
+        },
+        'Start Sesi — tema & Teks Utama (10 menit).',
+      );
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'Gagal memulai sesi.');
     } finally {
       setBusy(false);
     }
@@ -187,24 +214,23 @@ export function useLabActivity(sessionId: string | null) {
     if (!sessionId) return;
     setBusy(true);
     try {
-      await ensureSessionRunning(sessionId);
       const now = new Date().toISOString();
       await pushActivity(
         {
           phase: 'BRIEFING',
           startedAt: now,
-          durationSec: 900,
+          durationSec: 300,
           presentStartedAt: null,
-          completed: { ...defaultLabCompleted(), BRIEFING_AT: now },
+          completed: { ...activity.completed, BRIEFING_AT: now },
         },
-        'Briefing — instruksi undian & slot urutan di layar. Isi perwakilan di panel kontrol.',
+        'Briefing — perwakilan maju ke depan; undi urutan di panel kontrol.',
       );
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Gagal memulai briefing.');
     } finally {
       setBusy(false);
     }
-  }, [sessionId, pushActivity]);
+  }, [sessionId, pushActivity, activity.completed]);
 
   const startPhase = useCallback(
     (phase: 'A1' | 'A2') => {
@@ -228,9 +254,46 @@ export function useLabActivity(sessionId: string | null) {
         durationSec: activity.presentSeconds,
         presentSlide: 0,
       },
-      'Presentasi Kelompok dimulai.',
+      'Presentasi — urutan tampil 1 menit, lalu slide per kelompok.',
     );
   }, [activity.presentSeconds, pushActivity]);
+
+  const openChipsKonklusi = useCallback(async () => {
+    if (!sessionId) return;
+    setBusy(true);
+    try {
+      const now = new Date().toISOString();
+      await pushActivity(
+        {
+          phase: 'DONE',
+          startedAt: now,
+          durationSec: 0,
+          presentStartedAt: null,
+          completed: { ...activity.completed, DONE_AT: now },
+        },
+        'Konklusi — Lesson Learned dibuka di HP peserta.',
+      );
+      await saveStage(sessionId, { labChipsOpen: true });
+      const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/state`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'wrapup' }),
+      });
+      if (!r.ok && r.status !== 409) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d?.error || 'Gagal membuka wrapup.');
+      }
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'Gagal membuka konklusi.');
+    } finally {
+      setBusy(false);
+    }
+  }, [sessionId, pushActivity, activity.completed]);
+
+  const lockScreen = useCallback(() => {
+    void pushActivity({ showOnScreen: false }, 'Layar proyektor dikunci — peserta tetap di HP.');
+  }, [pushActivity]);
 
   const stopTimer = useCallback(
     () => pushActivity({ startedAt: null, presentStartedAt: null }, 'Timer dihentikan (transisi manual).'),
@@ -238,7 +301,7 @@ export function useLabActivity(sessionId: string | null) {
   );
 
   const resetStage = useCallback(() => {
-    if (!window.confirm('Reset panggung ke awal (judul tema saja)? Timer & fase aktivitas direset — jawaban audiens tidak dihapus.')) return;
+    if (!window.confirm('Reset panggung ke awal? Timer & fase aktivitas direset — jawaban audiens tidak dihapus.')) return;
     void pushActivity(
       {
         phase: 'PRE',
@@ -251,6 +314,7 @@ export function useLabActivity(sessionId: string | null) {
         presentDrawnAt: null,
         presentSkipped: [],
         presentPostponed: [],
+        showOnScreen: true,
         completed: defaultLabCompleted(),
       },
       'Panggung direset ke awal.',
@@ -286,10 +350,10 @@ export function useLabActivity(sessionId: string | null) {
     activity.phase === 'A1' ? 'Sesi 1 · Reminder Jar'
       : activity.phase === 'A2' ? 'Sesi 2 · Art Stations'
         : activity.phase === 'PRESENT' ? 'Presentasi Kelompok'
-          : activity.phase === 'DRAW' ? 'Undian'
-            : activity.phase === 'DONE' ? 'Selesai'
-              : activity.phase === 'BRIEFING' ? 'Briefing'
-                : 'Menunggu Briefing';
+          : activity.phase === 'DONE' ? 'Konklusi'
+            : activity.phase === 'BRIEFING' ? 'Briefing'
+              : activity.phase === 'START' ? 'Start Sesi'
+                : 'Menunggu Start Sesi';
 
   return useMemo(
     () => ({
@@ -299,9 +363,12 @@ export function useLabActivity(sessionId: string | null) {
       reload,
       pushActivity,
       startDraw,
+      startSession,
       startBriefing,
       startPhase,
       startPresent,
+      openChipsKonklusi,
+      lockScreen,
       stopTimer,
       resetStage,
       extendActivityPhase,
@@ -316,9 +383,12 @@ export function useLabActivity(sessionId: string | null) {
       reload,
       pushActivity,
       startDraw,
+      startSession,
       startBriefing,
       startPhase,
       startPresent,
+      openChipsKonklusi,
+      lockScreen,
       stopTimer,
       resetStage,
       extendActivityPhase,

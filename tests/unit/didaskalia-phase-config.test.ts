@@ -22,9 +22,10 @@ describe('didaskalia-phase-config', () => {
     expect(keys.slice(0, 4)).toEqual(['FIRMAN', 'BRIEFING', 'M0', 'M1']);
   });
 
-  it('creative lab day flow mentions Undian and Briefing', () => {
-    expect(CREATIVE_LAB_DAY_FLOW).toMatch(/Undian/);
+  it('creative lab day flow mentions Start Sesi, Briefing, undian', () => {
+    expect(CREATIVE_LAB_DAY_FLOW).toMatch(/Start Sesi/);
     expect(CREATIVE_LAB_DAY_FLOW).toMatch(/Briefing/);
+    expect(CREATIVE_LAB_DAY_FLOW).toMatch(/undian/i);
   });
 
   it('resolves pattern code aliases', () => {

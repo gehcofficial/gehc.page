@@ -207,13 +207,13 @@ export type PhasePrefs = Partial<Record<'F1' | 'F2' | 'F3' | 'CLOSING', { durati
 
 /** State panggung Creative Lab (fase aktivitas + timer + kartu jar + presentasi). */
 export type SessionActivity = {
-  phase: 'PRE' | 'BRIEFING' | 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
+  phase: 'PRE' | 'START' | 'BRIEFING' | 'DRAW' | 'IDLE' | 'A1' | 'A2' | 'PRESENT' | 'DONE';
   startedAt: string | null;
   durationSec: number;
   showOnScreen: boolean;
   cardIndex: number;
   presentIndex: number;
-  /** 0 = Pot, 1 = Tas, 2 = foto bersama. Kosong pada sesi lama berarti slide Pot. */
+  /** 0 = Pot, 1 = Bag, 2 = Commitment. Kosong pada sesi lama berarti slide Pot. */
   presentSlide?: number;
   presentStartedAt: string | null;
   presentSeconds: number;
@@ -224,6 +224,7 @@ export type SessionActivity = {
   presentDrawnAt?: string | null;
   durations?: { A1: number; A2: number; PRESENT: number };
   completed?: {
+    START_AT?: string | null;
     BRIEFING_AT?: string | null;
     DRAW_AT?: string | null;
     A1_AT?: string | null;
@@ -237,6 +238,8 @@ export type SessionActivity = {
 export type SessionActivityBrief = {
   firmanTitle?: string;
   firmanPoints?: string;
+  teksUtamaRef?: string;
+  teksUtamaText?: string;
   briefing: {
     core: string; rules: string; jarIntro: string; scribe: string; draw: string;
     audienceDirective?: string; projectorDirective?: string;
@@ -292,7 +295,7 @@ export function labStationCopy(brief?: SessionActivityBrief) {
   return {
     mediaA: a?.media || 'Pot',
     themeA: a?.theme || 'Grow What You Believe',
-    mediaB: b?.media || 'Tas',
+    mediaB: b?.media || 'Bag',
     themeB: b?.theme || 'Carry the Gospel',
   };
 }

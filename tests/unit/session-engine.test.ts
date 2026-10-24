@@ -15,6 +15,7 @@ import {
   resolvePatternCode,
   resolvePinnedSegment,
   segmentForPattern,
+  labParticipantBriefingMessage,
   sessionModuleLabel,
   widgetsFor,
 } from '../../src/lib/session-engine';
@@ -76,6 +77,8 @@ describe('session-engine: registry segmen', () => {
     ]);
     expect(segmentForPattern('CREATIVE_LAB', 'DRAFT', false)).toBe('briefing');
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'IDLE' })).toBe('briefing');
+    expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'START' })).toBe('briefing');
+    expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'BRIEFING' })).toBe('briefing');
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'A1' })).toBe('aktivitas-1');
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'A2' })).toBe('aktivitas-2');
     expect(segmentForPattern('CREATIVE_LAB', 'RUNNING', false, undefined, { activityPhase: 'PRESENT' })).toBe('presentasi');
@@ -172,6 +175,26 @@ describe('session-engine: registry segmen', () => {
       expect(slots.length).toBeGreaterThan(1);
       expect(slots[slots.length - 1].key).toBe('KOMITMEN');
     }
+  });
+
+  it('labParticipantBriefingMessage: START menampilkan tema & teks utama', () => {
+    const msg = labParticipantBriefingMessage('START', {
+      firmanTitle: 'Our Roots & DNA',
+      teksUtamaRef: '2 Timotius 1:3–18',
+      teksUtamaText: 'Paulus mengingatkan iman warisan',
+      briefing: { core: '', rules: '', jarIntro: '', scribe: '', draw: '' },
+      a1: { title: '', subtitle: '', goal: '', tools: '', steps: '', output: '', minutes: 15 },
+      a2: {
+        title: '', goal: '', tools: '',
+        stationA: { media: 'Pot', theme: '' },
+        stationB: { media: 'Bag', theme: '' },
+        pot: '', bag: '', potMeaning: '', bagMeaning: '', report: '', commit: '', minutes: 25,
+      },
+      present: { order: '', questions: '', seconds: 150 },
+      closing: { script: '', commit: '', prayer: '' },
+    });
+    expect(msg.title).toBe('Our Roots & DNA');
+    expect(msg.body).toContain('2 Timotius');
   });
 
   it('CREATIVE_LAB: 6 kartu jar + KOMITMEN', () => {
