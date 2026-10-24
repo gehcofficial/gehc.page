@@ -627,13 +627,17 @@ async function ensureLabFolder(prisma, session, { kind, groupName } = {}) {
   return ensurePlainChild(bucketId, groupName || 'Kelompok');
 }
 
-/** Kelompok youth aktif + userId yang sudah check-in pada event sesi. */
+/**
+ * Kelompok youth aktif + kehadiran hari-H event.
+ * Anggota papan = mentee (familyRole MENTEE) yang check-in event atau HADIR di AttendanceRecord tanggal event.
+ * Peserta tanpa kelompok tidak di-assign otomatis.
+ */
 async function loadCreativeLabGroupSource(prisma, eventId) {
   const groups = await prisma.group.findMany({
     where: { tenantId: YOUTH_TENANT, status: 'ACTIVE' },
     include: {
       members: {
-        where: { status: 'ACTIVE' },
+        where: { status: 'ACTIVE', familyRole: 'MENTEE' },
         include: { user: { select: { id: true, name: true } } },
       },
     },
@@ -641,8 +645,14 @@ async function loadCreativeLabGroupSource(prisma, eventId) {
     take: 60,
   }).catch(() => []);
   let checkedInIds = [];
+  let eventDate = null;
   if (eventId) {
-    const [attendees, scans] = await Promise.all([
+    const event = await prisma.eventProgram.findUnique({
+      where: { id: String(eventId) },
+      select: { eventDate: true },
+    }).catch(() => null);
+    eventDate = event?.eventDate || null;
+    const [attendees, scans, attendance] = await Promise.all([
       prisma.eventAttendee.findMany({
         where: { eventId, checkedInAt: { not: null } },
         select: { userId: true },
@@ -653,8 +663,23 @@ async function loadCreativeLabGroupSource(prisma, eventId) {
         select: { userId: true },
         take: 800,
       }).catch(() => []),
+      eventDate
+        ? prisma.attendanceRecord.findMany({
+          where: {
+            date: eventDate,
+            status: 'HADIR',
+            member: { familyRole: 'MENTEE', status: 'ACTIVE' },
+          },
+          select: { member: { select: { userId: true } } },
+          take: 2000,
+        }).catch(() => [])
+        : Promise.resolve([]),
     ]);
-    checkedInIds = [...new Set([...attendees, ...scans].map((r) => r.userId).filter(Boolean))];
+    checkedInIds = [...new Set([
+      ...attendees.map((r) => r.userId),
+      ...scans.map((r) => r.userId),
+      ...attendance.map((r) => r.member?.userId),
+    ].filter(Boolean))];
   }
   return {
     groups: groups.map((g) => ({
@@ -665,6 +690,7 @@ async function loadCreativeLabGroupSource(prisma, eventId) {
         .map((m) => ({ id: m.userId, name: m.user?.name || m.name || '' })),
     })),
     checkedInIds,
+    eventDate,
   };
 }
 
@@ -719,7 +745,7 @@ export function filmAffirm(config) {
  * Kode slot catatan yang boleh diisi peserta: topik sesi + KESIMPULAN +
  * KOMITMEN + kunci template draft (FGD-OBSERVE, FILM-Q1, dsb. — uppercase).
  */
-export function allowedNoteCodes(config) {
+export function allowedNoteCodes(config, patternCode = '') {
   const set = new Set([...(config.topics || []).map((t) => t.code), 'KESIMPULAN', 'KOMITMEN', 'SATU-KATA']);
   const draft = config.draft && typeof config.draft === 'object' ? config.draft : {};
   for (const fields of Object.values(draft)) {
@@ -728,6 +754,15 @@ export function allowedNoteCodes(config) {
       const code = String(k).toUpperCase().replace(/[^A-Z0-9-]/g, '-').slice(0, 40);
       if (code) set.add(code);
     }
+  }
+  const pcode = String(patternCode || config.patternCode || '').toUpperCase();
+  if (pcode === 'CREATIVE_LAB') {
+    for (const code of jarNoteCodes(draft)) set.add(code);
+    for (const card of jarCards(config)) {
+      const code = String(card?.code || '').toUpperCase().slice(0, 40);
+      if (code) set.add(code);
+    }
+    for (const code of ['JAR-ROOT', 'JAR-TRUTH', 'JAR-LOST', 'JAR-COMMUNITY', 'JAR-VERSE', 'JAR-STEP']) set.add(code);
   }
   return set;
 }
@@ -1376,7 +1411,7 @@ export function registerWorshipRoutes(app, { wrap }) {
       }
 
       const config = normalizeConfig(live.config, session.pattern?.code);
-      const allowed = allowedNoteCodes(config);
+      const allowed = allowedNoteCodes(config, session.pattern?.code);
       const raw = Array.isArray(req.body?.notes) ? req.body.notes : [];
       const rows = [];
       for (const entry of raw) {
@@ -1469,7 +1504,9 @@ export function registerWorshipRoutes(app, { wrap }) {
         groups: src.groups.map((g) => ({
           id: g.id,
           name: g.name,
-          members: g.members.map((m) => ({ id: m.id, name: m.name, checkedIn: checked.has(m.id) })),
+          members: g.members
+            .filter((m) => checked.has(m.id))
+            .map((m) => ({ id: m.id, name: m.name, checkedIn: true })),
         })),
       });
     }),

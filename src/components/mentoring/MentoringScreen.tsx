@@ -311,7 +311,7 @@ const MentoringScreen: React.FC = () => {
               )}
             </section>
           )}
-          {patternCode !== 'MONOLOG' && !isFilm && (
+          {patternCode !== 'MONOLOG' && !isFilm && patternCode !== 'CREATIVE_LAB' && (
           <section className="rounded-[28px] bg-white/5 border border-white/10 p-8 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <Timer className="w-8 h-8 text-brand" />
@@ -587,14 +587,14 @@ const MentoringScreen: React.FC = () => {
                   ? [brief?.firmanTitle || data.session.title, teksRef ? `Teks Utama: ${teksRef}` : '', teksText || ''].filter(Boolean).join(' · ')
                   : labPhase === 'PRE' ? 'Menunggu pembukaan sesi dari kontrol Didaskalia.'
                     : phase === 'A1' ? `Semua menulis 6 kartu di kertas · pilih 2 untuk web (paralel) · ${brief?.a1.minutes || 15} menit`
-                      : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · perwakilan melapor ke Admin · ${brief?.a2.minutes || 25} menit`
+                      : phase === 'A2' ? `Stasiun A (${stations.mediaA}) ∥ Stasiun B (${stations.mediaB}) (paralel) · ${brief?.a2.minutes || 25} menit`
                         : phase === 'PRESENT'
                           ? (showPresentOrder
                             ? 'Urutan presentasi kelompok hari ini.'
                             : `${act.presentSeconds} detik per kelompok · ${slideTitles[presentSlide]}`)
                           : phase === 'DONE' ? 'Pilih chip Lesson Learned + tulis komitmenmu di HP.'
                             : briefingMode === 'briefing'
-                              ? (brief?.briefing.projectorDirective || brief?.briefing.audienceDirective || 'Perwakilan tiap grup maju ke depan — urutan presentasi sedang diundi.')
+                              ? 'Perwakilan setiap kelompok maju melapor ke Admin — sebutkan nama perwakilan. Urutan presentasi diundi di meja admin (tidak ditampilkan di layar).'
                               : brief?.briefing.audienceDirective || 'Menunggu briefing dimulai.';
               return (
                 <>
@@ -628,7 +628,10 @@ const MentoringScreen: React.FC = () => {
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Briefing</p>
                         <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">
-                          {brief.briefing.projectorDirective || brief.briefing.audienceDirective || 'Perwakilan tiap grup maju ke depan dan melapor ke admin.'}
+                          Perwakilan setiap kelompok maju melapor ke Admin
+                        </p>
+                        <p className="text-sm text-white/70 mt-2">
+                          {brief.briefing.scribe || 'Sebutkan nama perwakilan tiap kelompok kepada admin saat melapor.'}
                         </p>
                         <p className="text-sm text-white/60 mt-2">
                           {brief.briefing.draw || 'Urutan presentasi sedang diundi — hasil hanya untuk tim kontrol.'}
@@ -728,17 +731,30 @@ const MentoringScreen: React.FC = () => {
                     </section>
                   )}
 
+                  {phase === 'PRESENT' && act.presentComplete && (
+                    <section className="rounded-[28px] bg-white/5 border border-brand/30 p-8 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Presentasi</p>
+                      <p className="font-display text-3xl font-black mt-2">Semua kelompok selesai</p>
+                      <p className="text-sm text-white/60 mt-2">Menunggu Konklusi · Lesson Learned dari kontrol Didaskalia.</p>
+                    </section>
+                  )}
+
                   {phase === 'A2' && brief && (
                     <div className="space-y-4">
-                      <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Pencatat</p>
-                        <p className="font-display text-2xl sm:text-3xl font-black mt-2 leading-tight">{brief.briefing.scribe || 'Umumkan perwakilan pencatat tiap kelompok.'}</p>
-                      </section>
-                      <section className="rounded-[28px] bg-[#111] border border-brand/40 p-6 sm:p-8 text-center">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Instruksi melapor</p>
-                        <p className="font-display text-2xl sm:text-3xl font-black mt-2">{brief.a2.report || 'Perwakilan setiap kelompok maju melapor kepada Admin.'}</p>
-                        <p className="text-sm text-white/60 mt-2">Bawa hasil karya kedua stasiun, lalu unggah foto bersama seluruh anggota + karya di HP perwakilan.</p>
-                      </section>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <section className="rounded-[28px] bg-brand/10 border border-brand/30 p-6 sm:p-8">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-brand">Perwakilan kelompok</p>
+                          <p className="text-sm text-white/80 mt-2 leading-relaxed">
+                            Bawa hasil karya Stasiun A &amp; B ke depan bila diminta; di HP: unggah foto bersama + foto karya, isi makna &amp; progress tiap stasiun, tulis komitmen kelompok.
+                          </p>
+                        </section>
+                        <section className="rounded-[28px] bg-white/5 border border-white/10 p-6 sm:p-8">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Anggota lainnya</p>
+                          <p className="text-sm text-white/80 mt-2 leading-relaxed">
+                            Selesaikan karya di meja Stasiun A ({stations.mediaA}) dan Stasiun B ({stations.mediaB}) bersama; dukung perwakilan — tidak perlu ke depan kecuali diminta fasilitator.
+                          </p>
+                        </section>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <section className="rounded-[28px] bg-emerald-400/10 border border-emerald-300/20 p-7 sm:p-8">
                           <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">Stasiun A · {stations.mediaA} — {stations.themeA}</p>

@@ -20,6 +20,7 @@ export type LabGateActivity = {
   startedAt?: string | null;
   presentDrawnAt?: string | null;
   presentStartedAt?: string | null;
+  presentComplete?: boolean;
   completed?: Partial<LabCompleted> | null;
 };
 
@@ -76,7 +77,9 @@ export function canEnableLabRunnerKey(key: string, activity: LabGateActivity | n
       return Boolean(c.A2_AT) && !c.PRESENT_AT;
     case 'CHIPS':
     case 'WRAPUP':
-      return Boolean(c.PRESENT_AT) && phase !== 'DONE' && !c.DONE_AT;
+      if (!c.PRESENT_AT) return false;
+      if (phase === 'DONE') return true;
+      return phase === 'PRESENT' && Boolean(a.presentComplete);
     case 'LOCK':
       return phase === 'DONE' || Boolean(c.DONE_AT);
     default:

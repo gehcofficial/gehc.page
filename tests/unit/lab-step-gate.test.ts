@@ -56,6 +56,37 @@ describe('lab-step-gate', () => {
     expect(out.activity?.completed?.START_AT).toBeTruthy();
   });
 
+  it('DONE hanya dari PRESENT dengan presentComplete', () => {
+    const present = {
+      ...defaultCreativeLabActivity(),
+      phase: 'PRESENT',
+      completed: { ...defaultLabCompleted(), PRESENT_AT: '2026-10-25T12:00:00.000Z' },
+    };
+    expect(validateLabActivityTransition(present, { ...present, phase: 'DONE' })).toMatch(/selesai/i);
+    expect(validateLabActivityTransition(present, { ...present, phase: 'DONE', presentComplete: true })).toBeNull();
+  });
+
+  it('CHIPS terbuka setelah presentComplete, dan self-heal saat DONE tanpa DONE_AT', () => {
+    const presentDone = {
+      ...defaultCreativeLabActivity(),
+      phase: 'PRESENT',
+      presentComplete: true,
+      completed: {
+        ...defaultLabCompleted(),
+        PRESENT_AT: '2026-10-25T12:00:00.000Z',
+      },
+    };
+    expect(canEnableLabRunnerKey('CHIPS', presentDone)).toBe(true);
+
+    const stuckDone = {
+      ...presentDone,
+      phase: 'DONE',
+      completed: { ...presentDone.completed, DONE_AT: '2026-10-25T12:30:00.000Z' },
+    };
+    expect(canEnableLabRunnerKey('CHIPS', stuckDone)).toBe(true);
+    expect(canEnableLabRunnerKey('CHIPS', { ...presentDone, presentComplete: false })).toBe(false);
+  });
+
   it('urutan presentasi hanya menit pertama fase PRESENT', () => {
     const t0 = '2026-10-25T12:00:00.000Z';
     expect(labAudienceShowsPresentOrder('PRESENT', t0, Date.parse(t0) + 30_000)).toBe(true);

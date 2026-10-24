@@ -23,6 +23,7 @@ export type LabActivityState = {
   presentSkipped: number[];
   presentPostponed: number[];
   presentDrawnAt: string | null;
+  presentComplete?: boolean;
   durations: { A1: number; A2: number; PRESENT: number };
   completed: LabCompleted;
 };
@@ -84,6 +85,7 @@ export function parseLabActivity(cfg: Record<string, unknown>): LabActivityState
     presentSkipped: Array.isArray(a.presentSkipped) ? a.presentSkipped.map((n) => Number(n)).filter((n) => Number.isInteger(n)) : [],
     presentPostponed: Array.isArray(a.presentPostponed) ? a.presentPostponed.map((n) => Number(n)).filter((n) => Number.isInteger(n)) : [],
     presentDrawnAt: (a.presentDrawnAt as string) || null,
+    presentComplete: Boolean(a.presentComplete),
     durations: {
       A1: Number(dur.A1) || 900,
       A2: Number(dur.A2) || 1500,
@@ -261,19 +263,37 @@ export function useLabActivity(sessionId: string | null) {
   const openChipsKonklusi = useCallback(async () => {
     if (!sessionId) return;
     setBusy(true);
+    setNote(null);
     try {
+      const cfg = await fetchStageConfig(sessionId);
+      const current = parseLabActivity(cfg);
+      const chipsAlreadyOpen = Boolean(cfg.labChipsOpen);
       const now = new Date().toISOString();
-      await pushActivity(
-        {
-          phase: 'DONE',
-          startedAt: now,
-          durationSec: 0,
-          presentStartedAt: null,
-          completed: { ...activity.completed, DONE_AT: now },
-        },
-        'Konklusi — Lesson Learned dibuka di HP peserta.',
-      );
-      await saveStage(sessionId, { labChipsOpen: true });
+      const konklusiSec = 600;
+
+      if (current.phase === 'DONE' && chipsAlreadyOpen) {
+        setNote('Lesson Learned sudah terbuka.');
+        return;
+      }
+
+      if (current.phase === 'DONE' && !chipsAlreadyOpen) {
+        await saveStage(sessionId, { labChipsOpen: true });
+        setNote('Lesson Learned dibuka kembali di HP peserta.');
+      } else {
+        await pushActivity(
+          {
+            phase: 'DONE',
+            startedAt: now,
+            durationSec: konklusiSec,
+            presentStartedAt: null,
+            presentComplete: true,
+            completed: { ...current.completed, DONE_AT: current.completed.DONE_AT || now },
+          },
+          'Konklusi — Lesson Learned dibuka di HP peserta.',
+        );
+        await saveStage(sessionId, { labChipsOpen: true });
+      }
+
       const r = await fetch(`/api/worship/sessions/${encodeURIComponent(sessionId)}/state`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -289,7 +309,7 @@ export function useLabActivity(sessionId: string | null) {
     } finally {
       setBusy(false);
     }
-  }, [sessionId, pushActivity, activity.completed]);
+  }, [sessionId, pushActivity]);
 
   const lockScreen = useCallback(() => {
     void pushActivity({ showOnScreen: false }, 'Layar proyektor dikunci — peserta tetap di HP.');

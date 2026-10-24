@@ -878,6 +878,16 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
             )}
             {labAct.phase === 'A2' && brief && (
               <div className="mt-2 grid gap-2">
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-brand/5 border border-brand/20 px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-brand">Perwakilan</p>
+                    <p className="text-[11px] text-[#1B1B1B] mt-1">Unggah foto bersama + karya, isi makna/progress/komitmen di HP.</p>
+                  </div>
+                  <div className="rounded-xl bg-[#FAF9F5] border border-[#EFEDE8] px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-[#8C8880]">Anggota lain</p>
+                    <p className="text-[11px] text-[#1B1B1B] mt-1">Kerjakan Stasiun A &amp; B di meja; dukung perwakilan.</p>
+                  </div>
+                </div>
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
                   <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Stasiun A · {stations.mediaA} — {stations.themeA}</p>
                   <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.potMeaning}</p>
@@ -888,7 +898,6 @@ export const PatternDay: React.FC<{ slug: string; code: string }> = ({ slug, cod
                   <p className="text-[11px] leading-relaxed mt-0.5">{brief.a2.bagMeaning}</p>
                   <p className="text-[10px] text-brand/80 mt-1"><b>Refleksi:</b> {brief.a2.bag}</p>
                 </div>
-                <p className="text-[11px] font-bold text-[#1B1B1B]">{brief.a2.report || 'Perwakilan setiap kelompok maju melapor kepada Admin.'}</p>
                 {brief.a2.commit && <p className="text-[11px] text-[#8C8880]">Komitmen kelompok: {brief.a2.commit}</p>}
               </div>
             )}

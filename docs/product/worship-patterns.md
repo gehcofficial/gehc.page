@@ -218,6 +218,7 @@ Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto
 ### 12.4 Kontrol & layar
 
 - **Kontrol** (`#/mentoring/<slug>/kontrol`): strip **Start Sesi → Briefing → Sesi 1 → Sesi 2 → Presentasi → Buka Lesson Learned → Kunci layar** (gembok sampai langkah sebelumnya jalan; undian hanya di panel urutan saat Briefing) + `ActivityPanel` —
+  Papan kelompok: roster = mentee Beyonders yang **check-in event** (`EventAttendee.checkedInAt`, `EventCheckIn` OK, atau `AttendanceRecord` HADIR tanggal event); perwakilan hanya dari yang hadir; peserta tanpa kelompok tidak di-assign otomatis.
   A1 / A2 / Presentasi / Kelompok berikutnya / Stop / Reset, input durasi
   fase, toggle tampil layar, navigator 6 kartu, tombol **Muat 10 kelompok**.
   Nama kelompok terkunci bila `groupId` terisi. Perwakilan, Tim Pot, dan
@@ -225,7 +226,7 @@ Kunci foto tetap `POT` / `BAG` / `GROUP` (tampilan: Stasiun A / Stasiun B / Foto
   Sesi yang sudah punya baris `worship_lab_updates` mengunci urutan indeks
   saat muat ulang. Kontrol mandiri punya shell, status memuat, dan
   mengalihkan 401 ke login.
-- **Layar** (`/layar`): kode sesi dibaca dari query di dalam hash
+- **Layar** (`/layar`): tanpa timer sesi penuh (Waktu tersisa) — hanya countdown fase aktivitas; kode sesi dibaca dari query di dalam hash
   (`#/mentoring/<slug>/layar?code=`), menang atas localStorage. Timer fase,
   tema + Teks Utama (Start), briefing tanpa hasil undian, spotlight kelompok, kartu jar, arahan Pot/Bag, konklusi chip, papan kelompok (nama perwakilan hanya Sesi 2).
 - **Foto:** `Didaskalia [MENTOR]/Kurikulum/<event> [EV:<slug>:DIDASKALIA]/Foto Kelompok/<nama>`
